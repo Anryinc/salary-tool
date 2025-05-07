@@ -12,9 +12,12 @@ module.exports = function override(config) {
         "assert": require.resolve("assert/"),
         "buffer": require.resolve("buffer/"),
         "process": require.resolve("process/browser"),
+        "zlib": false,
+        "path": false,
+        "fs": false
     };
 
-    config.resolve.extensions = [...config.resolve.extensions, ".ts", ".js"];
+    config.resolve.extensions = [...config.resolve.extensions, ".ts", ".js", ".jsx", ".json"];
     config.ignoreWarnings = [/Failed to parse source map/];
 
     config.plugins = [
@@ -27,6 +30,13 @@ module.exports = function override(config) {
             'process.env': JSON.stringify(process.env)
         })
     ];
+
+    config.module.rules.push({
+        test: /\.m?js/,
+        resolve: {
+            fullySpecified: false
+        }
+    });
 
     return config;
 }; 

@@ -30,7 +30,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import axios from 'axios';
+import { searchPositions, getSalaryData, getGradeStats } from './api';
 
 ChartJS.register(
   CategoryScale,
@@ -57,8 +57,8 @@ function App() {
 
   useEffect(() => {
     if (searchQuery.length >= 2) {
-      axios.get(`https://anryinc.github.io/salary-tool/api/search/positions?query=${searchQuery}`)
-        .then(response => setSuggestions(response.data))
+      searchPositions(searchQuery)
+        .then(data => setSuggestions(data))
         .catch(error => console.error('Error fetching suggestions:', error));
     }
   }, [searchQuery]);
@@ -70,19 +70,19 @@ function App() {
   }, [selectedPosition, startDate, endDate]);
 
   const fetchData = () => {
-    const params = new URLSearchParams({
+    const params = {
       position: selectedPosition,
       ...(startDate && { start_date: startDate.toISOString().split('T')[0] }),
       ...(endDate && { end_date: endDate.toISOString().split('T')[0] }),
-    });
+    };
 
     Promise.all([
-      axios.get(`https://anryinc.github.io/salary-tool/api/salary-data?${params}`),
-      axios.get(`https://anryinc.github.io/salary-tool/api/grade-stats?${params}`)
+      getSalaryData(params),
+      getGradeStats(params)
     ])
       .then(([salaryResponse, statsResponse]) => {
-        setSalaryData(salaryResponse.data);
-        setGradeStats(statsResponse.data);
+        setSalaryData(salaryResponse);
+        setGradeStats(statsResponse);
       })
       .catch(error => console.error('Error fetching data:', error));
   };
