@@ -14,12 +14,18 @@ module.exports = function override(config) {
         "process": require.resolve("process/browser"),
     };
 
+    config.resolve.extensions = [...config.resolve.extensions, ".ts", ".js"];
+    config.ignoreWarnings = [/Failed to parse source map/];
+
     config.plugins = [
         ...config.plugins,
         new webpack.ProvidePlugin({
             process: 'process/browser',
             Buffer: ['buffer', 'Buffer'],
         }),
+        new webpack.DefinePlugin({
+            'process.env': JSON.stringify(process.env)
+        })
     ];
 
     return config;
