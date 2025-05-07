@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Box,
@@ -55,21 +55,7 @@ function App() {
   const [gradeRange, setGradeRange] = useState([0, 4]);
   const [isRangeSelectMode, setIsRangeSelectMode] = useState(false);
 
-  useEffect(() => {
-    if (searchQuery.length >= 2) {
-      searchPositions(searchQuery)
-        .then(data => setSuggestions(data))
-        .catch(error => console.error('Error fetching suggestions:', error));
-    }
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (selectedPosition) {
-      fetchData();
-    }
-  }, [selectedPosition, startDate, endDate]);
-
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
     const params = {
       position: selectedPosition,
       ...(startDate && { start_date: startDate.toISOString().split('T')[0] }),
@@ -85,7 +71,21 @@ function App() {
         setGradeStats(statsResponse);
       })
       .catch(error => console.error('Error fetching data:', error));
-  };
+  }, [selectedPosition, startDate, endDate]);
+
+  useEffect(() => {
+    if (searchQuery.length >= 2) {
+      searchPositions(searchQuery)
+        .then(data => setSuggestions(data))
+        .catch(error => console.error('Error fetching suggestions:', error));
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (selectedPosition) {
+      fetchData();
+    }
+  }, [selectedPosition, startDate, endDate, fetchData]);
 
   const chartData = {
     labels: salaryData.vacancies.map(item => item.date),
