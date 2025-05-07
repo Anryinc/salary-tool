@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Анализ зарплат</title>
+    <style>
+        table { border-collapse: collapse; width: 80%; margin: 20px auto; }
+        th, td { border: 1px solid black; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        .form-container { text-align: center; margin: 20px; }
+        .graph-container { width: 80%; margin: 20px auto; display: flex; flex-wrap: nowrap; overflow-x: auto; }
+        .zone { flex: 1; height: 200px; position: relative; border: 1px solid #ddd; min-width: 20px; }
+        .zone-label { position: absolute; top: -30px; left: 50%; transform: translateX(-50%) rotate(-90deg); font-size: 12px; white-space: nowrap; }
+        .vacancy-bar { position: absolute; bottom: 0; width: 100%; background-color: rgba(255, 99, 132, 0.4); }
+        .resume-dot { position: absolute; width: 8px; height: 8px; background-color: rgba(173, 216, 230, 1); border-radius: 50%; transform: translateX(-50%); left: 50%; }
+        .slider-container { text-align: center; margin: 20px; }
+        .slider-wrapper { width: 80%; margin: 0 auto; position: relative; height: 30px; }
+        .slider-label { display: inline-block; width: 50px; vertical-align: top; }
+        .slider-track { width: 100%; height: 5px; background: #ddd; position: absolute; top: 50%; transform: translateY(-50%); }
+        .slider-tick { position: absolute; width: 2px; height: 10px; background: #999; top: 50%; transform: translateY(-50%); }
+        .slider-thumb { position: absolute; width: 10px; height: 10px; background: #666; border-radius: 50%; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 2; }
+        .slider-range { position: absolute; height: 5px; background: #bbb; top: 50%; transform: translateY(-50%); z-index: 1; }
+    </style>
+</head>
+<body>
+    <h1>Анализ зарплат</h1>
+    
+    <div class="form-container">
+        <form method="POST" id="updateForm">
+            <label>Выберите способ поиска:</label><br>
+            <input type="radio" name="search_type" value="position" checked> Ввести должность
+            <input type="radio" name="search_type" value="url"> Вставить ссылку<br><br>
+            
+            <label for="position">Название должности (например, Python разработчик):</label>
+            <input type="text" name="position" id="position"><br><br>
+            
+            <label for="url">Ссылка с фильтрами:</label>
+            <input type="text" name="url" id="url"><br><br>
+            
+            <label for="step">Шаг диапазонов (₽):</label>
+            <select name="step" id="step">
+                <option value="5000" {% if current_step == 5000 %}selected{% endif %}>5,000</option>
+                <option value="10000" {% if current_step == 10000 %}selected{% endif %}>10,000</option>
+                <option value="20000" {% if current_step == 20000 %}selected{% endif %}>20,000</option>
+                <option value="50000" {% if current_step == 50000 %}selected{% endif %}>50,000</option>
+            </select><br><br>
+            
+            <input type="submit" value="Спарсить и показать">
+        </form>
+    </div>
+    
+    <h2>Грейды</h2>
+    <table id="gradesTable">
+        <tr>
+            <th>Уровень</th>
+            <th>Грейд 1 (15%) (₽)</th>
+            <th>Грейд 2 (50%) (₽)</th>
+            <th>Грейд 3 (85%) (₽)</th>
+        </tr>
+        {% for level, g in grades.items() %}
+        <tr>
+            <td>{{ level }}</td>
+            <td>{{ g.grade1 }}</td>
+            <td>{{ g.grade2 }}</td>
+            <td>{{ g.grade3 }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+    <div class="graph-container" id="graphContainer"></div>
+    
+    <div class="slider-container">
+        <div><span class="slider-label">Intern:</span><div class="slider-wrapper" id="sliderI"></div></div>
+        <div><span class="slider-label">Junior:</span><div class="slider-wrapper" id="sliderJ"></div></div>
+        <div><span class="slider-label">Middle:</span><div class="slider-wrapper" id="sliderM"></div></div>
+        <div><span class="slider-label">Senior:</span><div class="slider-wrapper" id="sliderS"></div></div>
+        <div><span class="slider-label">Lead:</span><div class="slider-wrapper" id="sliderL"></div></div>
+    </div>
+    
+    <h2>Диапазоны</h2>
+    <table>
+        <tr>
+            <th>Диапазон (₽)</th>
+            <th>Доля резюме</th>
+            <th>Доля вакансий</th>
+        </tr>
+        {% for metric in metrics %}
+        <tr>
+            <td>{{ metric.range }}</td>
+            <td>{{ metric.resume_fraction }}</td>
+            <td>{{ metric.vacancy_fraction }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <script>
+        var metrics = {{ metrics | safe }};
+        var labels = metrics.map(m => m.range);
+        var resumeData = metrics.map(m => m.resume_fraction);
+        var vacancyData = metrics.map(m => m.vacancy_fraction);
+        var step = {{ current_step }};
+
+        var gradeColors = {
+            'I': 'rgba(144, 238, 144, 0.4)',
+            'J': 'rgba(255, 215, 0, 0.4)',
+            'M': 'rgba(255, 165, 0, 0.4)',
+            'S': 'rgba(135, 206, 235, 0.4)',
+            'L': 'rgba(147, 112, 219, 0.4)'
+        };
+
+        var maxFraction = Math.max(...resumeData, ...vacancyData, 0.1);
+        var scaleFactor = 200 / maxFraction;
+
+        var graphContainer = document.getElementById('graphContainer');
+        labels.forEach((label, idx) => {
+            var zone = document.createElement('div');
+            zone.className = 'zone';
+            zone.dataset.range = label;
+            
+            var labelDiv = document.createElement('div');
+            labelDiv.className = 'zone-label';
+            labelDiv.innerText = label.replace(/(\d+)-(\d+)/, (m, p1, p2) => `${Math.floor(p1/1000)}k-${Math.floor(p2/1000)}k`);
+            zone.appendChild(labelDiv);
+            
+            var vacancyBar = document.createElement('div');
+            vacancyBar.className = 'vacancy-bar';
+            vacancyBar.style.height = `${vacancyData[idx] * scaleFactor}px`;
+            zone.appendChild(vacancyBar);
+            
+            var resumeDot = document.createElement('div');
+            resumeDot.className = 'resume-dot';
+            resumeDot.style.bottom = `${resumeData[idx] * scaleFactor}px`;
+            zone.appendChild(resumeDot);
+            
+            graphContainer.appendChild(zone);
+        });
+
+        var selectedRanges = {
+            'I': [],
+            'J': [],
+            'M': [],
+            'S': [],
+            'L': []
+        };
+
+        function updateGrades() {
+            fetch('/update_grades', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ step: step, custom_grade_ranges: selectedRanges })
+            })
+            .then(response => response.json())
+            .then(grades => {
+                var table = document.getElementById('gradesTable');
+                for (let i = 1; i < table.rows.length; i++) {
+                    let level = table.rows[i].cells[0].innerText;
+                    table.rows[i].cells[1].innerText = grades[level].grade1;
+                    table.rows[i].cells[2].innerText = grades[level].grade2;
+                    table.rows[i].cells[3].innerText = grades[level].grade3;
+                }
+            });
+        }
+
+        function updateHighlight() {
+            var zones = document.querySelectorAll('.zone');
+            zones.forEach(zone => {
+                var range = zone.dataset.range;
+                var colors = [];
+                for (let level in selectedRanges) {
+                    if (selectedRanges[level].includes(range)) {
+                        colors.push(gradeColors[level]);
+                    }
+                }
+                if (colors.length > 1) {
+                    zone.style.background = `linear-gradient(to right, ${colors.join(', ')})`;
+                } else if (colors.length === 1) {
+                    zone.style.background = colors[0];
+                } else {
+                    zone.style.background = 'transparent';
+                }
+            });
+            updateGrades();
+        }
+
+        ['I', 'J', 'M', 'S', 'L'].forEach((level, index) => {
+            var wrapper = document.getElementById(`slider${level}`);
+            var track = document.createElement('div');
+            track.className = 'slider-track';
+            wrapper.appendChild(track);
+
+            var range = document.createElement('div');
+            range.className = 'slider-range';
+            wrapper.appendChild(range);
+
+            var thumbMin = document.createElement('div');
+            thumbMin.className = 'slider-thumb';
+            wrapper.appendChild(thumbMin);
+
+            var thumbMax = document.createElement('div');
+            thumbMax.className = 'slider-thumb';
+            wrapper.appendChild(thumbMax);
+
+            for (let i = 0; i < labels.length; i++) {
+                var tick = document.createElement('div');
+                tick.className = 'slider-tick';
+                tick.style.left = `${(i / (labels.length - 1)) * 100}%`;
+                wrapper.appendChild(tick);
+            }
+
+            var segmentSize = Math.floor(labels.length / 5);
+            var minValue = index * segmentSize;
+            var maxValue = (index + 1) * segmentSize - 1;
+            if (index === 4) maxValue = labels.length - 1;
+
+            var dragging = null;
+
+            function updateRangeVisual() {
+                var minPos = (minValue / (labels.length - 1)) * 100;
+                var maxPos = (maxValue / (labels.length - 1)) * 100;
+                thumbMin.style.left = `${minPos}%`;
+                thumbMax.style.left = `${maxPos}%`;
+                range.style.left = `${minPos}%`;
+                range.style.width = `${maxPos - minPos}%`;
+                selectedRanges[level] = labels.slice(minValue, maxValue + 1);
+                updateHighlight();
+            }
+
+            function startDrag(e, thumb) {
+                dragging = thumb;
+                e.preventDefault();
+            }
+
+            thumbMin.addEventListener('mousedown', (e) => startDrag(e, thumbMin));
+            thumbMax.addEventListener('mousedown', (e) => startDrag(e, thumbMax));
+
+            thumbMin.addEventListener('touchstart', (e) => startDrag(e.touches[0], thumbMin));
+            thumbMax.addEventListener('touchstart', (e) => startDrag(e.touches[0], thumbMax));
+
+            function moveThumb(e) {
+                if (!dragging) return;
+                var rect = wrapper.getBoundingClientRect();
+                var clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                var pos = (clientX - rect.left) / rect.width;
+                pos = Math.max(0, Math.min(1, pos));
+                var value = Math.round(pos * (labels.length - 1));
+
+                if (dragging === thumbMin) {
+                    minValue = Math.min(value, maxValue);
+                } else if (dragging === thumbMax) {
+                    maxValue = Math.max(value, minValue);
+                }
+
+                updateRangeVisual();
+            }
+
+            document.addEventListener('mousemove', moveThumb);
+            document.addEventListener('touchmove', (e) => moveThumb(e));
+            document.addEventListener('mouseup', () => dragging = null);
+            document.addEventListener('touchend', () => dragging = null);
+
+            updateRangeVisual();
+        });
+
+        updateHighlight();
+    </script>
+</body>
+</html>
