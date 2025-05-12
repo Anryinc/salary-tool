@@ -264,13 +264,13 @@ function App() {
             const range = salaryData.ranges[context.dataIndex];
             const percentiles = salaryData.percentiles.vacancies.find(p => p.range === range);
             return [
-              `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`,
+              `${context.dataset.label}: ${(context.parsed.y || 0).toFixed(1)}%`,
               ...(percentiles ? [
-                `10-й перцентиль: ${percentiles.percentiles.p10?.toLocaleString()} ₽`,
-                `25-й перцентиль: ${percentiles.percentiles.p25?.toLocaleString()} ₽`,
-                `50-й перцентиль: ${percentiles.percentiles.p50?.toLocaleString()} ₽`,
-                `75-й перцентиль: ${percentiles.percentiles.p75?.toLocaleString()} ₽`,
-                `90-й перцентиль: ${percentiles.percentiles.p90?.toLocaleString()} ₽`
+                `10-й перцентиль: ${(percentiles.percentiles.p10 || 0).toLocaleString()} ₽`,
+                `25-й перцентиль: ${(percentiles.percentiles.p25 || 0).toLocaleString()} ₽`,
+                `50-й перцентиль: ${(percentiles.percentiles.p50 || 0).toLocaleString()} ₽`,
+                `75-й перцентиль: ${(percentiles.percentiles.p75 || 0).toLocaleString()} ₽`,
+                `90-й перцентиль: ${(percentiles.percentiles.p90 || 0).toLocaleString()} ₽`
               ] : [])
             ];
           }
@@ -396,31 +396,31 @@ function App() {
                       <TableCell>{grade}</TableCell>
                       <TableCell>
                         {resumeStat?.salaryRange && (
-                          `${resumeStat.salaryRange.min.toLocaleString()} - ${resumeStat.salaryRange.max.toLocaleString()} ₽`
+                          `${(resumeStat.salaryRange.min || 0).toLocaleString()} - ${(resumeStat.salaryRange.max || 0).toLocaleString()} ₽`
                         )}
                       </TableCell>
                       <TableCell>
                         {resumeStat?.percentiles && (
                           <Box>
                             <Typography variant="body2">
-                              Грейд 1: {resumeStat.percentiles.grade1.toLocaleString()} ₽
+                              Грейд 1: {(resumeStat.percentiles.grade1 || 0).toLocaleString()} ₽
                             </Typography>
                             <Typography variant="body2">
-                              Грейд 2: {resumeStat.percentiles.grade2.toLocaleString()} ₽
+                              Грейд 2: {(resumeStat.percentiles.grade2 || 0).toLocaleString()} ₽
                             </Typography>
                             <Typography variant="body2">
-                              Грейд 3: {resumeStat.percentiles.grade3.toLocaleString()} ₽
+                              Грейд 3: {(resumeStat.percentiles.grade3 || 0).toLocaleString()} ₽
                             </Typography>
                           </Box>
                         )}
                       </TableCell>
                       <TableCell align="right">{vacancyStat?.count || 0}</TableCell>
                       <TableCell align="right">
-                        {vacancyStat?.avg_salary ? Math.round(vacancyStat.avg_salary).toLocaleString() : '-'} ₽
+                        {vacancyStat?.avg_salary ? Math.round(vacancyStat.avg_salary || 0).toLocaleString() : '-'} ₽
                       </TableCell>
                       <TableCell align="right">{resumeStat?.count || 0}</TableCell>
                       <TableCell align="right">
-                        {resumeStat?.avg_salary ? Math.round(resumeStat.avg_salary).toLocaleString() : '-'} ₽
+                        {resumeStat?.avg_salary ? Math.round(resumeStat.avg_salary || 0).toLocaleString() : '-'} ₽
                       </TableCell>
                       <TableCell align="right">
                         <IconButton onClick={() => handleEditClick(grade)}>

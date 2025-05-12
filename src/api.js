@@ -35,19 +35,20 @@ const mockData = {
 
 // Функция для расчета перцентиля
 const calculatePercentile = (data, percentile) => {
-  if (!data.length) return null;
-  const sorted = [...data].sort((a, b) => a - b);
+  if (!data || !data.length) return 0;
+  const sorted = [...data].sort((a, b) => (a || 0) - (b || 0));
   const index = (percentile / 100) * (sorted.length - 1);
   const lower = Math.floor(index);
   const upper = Math.ceil(index);
   const weight = index - lower;
   
-  if (upper === lower) return sorted[lower];
-  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+  if (upper === lower) return sorted[lower] || 0;
+  return ((sorted[lower] || 0) * (1 - weight) + (sorted[upper] || 0) * weight);
 };
 
 // Функция для генерации диапазонов
 const generateRanges = (step, maxSalary = 700000) => {
+  if (!step || step <= 0) step = 10000;
   const ranges = [];
   for (let i = 0; i < maxSalary; i += step) {
     ranges.push({
@@ -66,12 +67,12 @@ const generateRanges = (step, maxSalary = 700000) => {
 
 // Функция для подсчета процентов значений в диапазонах
 const countInRanges = (data, ranges) => {
+  if (!data || !data.length) return ranges.map(() => 0);
   const totalCount = data.length;
-  if (totalCount === 0) return ranges.map(() => 0);
 
   return ranges.map(range => {
     const count = data.filter(item => {
-      const salary = item.salary;
+      const salary = item?.salary || 0;
       if (range.max === Infinity) {
         return salary >= range.min;
       }
@@ -83,16 +84,29 @@ const countInRanges = (data, ranges) => {
 
 // Функция для расчета перцентилей по диапазонам
 const calculateRangePercentiles = (data, ranges) => {
+  if (!data || !data.length) {
+    return ranges.map(range => ({
+      range: range.label,
+      percentiles: {
+        p10: 0,
+        p25: 0,
+        p50: 0,
+        p75: 0,
+        p90: 0
+      }
+    }));
+  }
+
   return ranges.map(range => {
     const salariesInRange = data
       .filter(item => {
-        const salary = item.salary;
+        const salary = item?.salary || 0;
         if (range.max === Infinity) {
           return salary >= range.min;
         }
         return salary >= range.min && salary < range.max;
       })
-      .map(item => item.salary);
+      .map(item => item?.salary || 0);
 
     return {
       range: range.label,
@@ -109,21 +123,33 @@ const calculateRangePercentiles = (data, ranges) => {
 
 // Функция для расчета грейдов
 const calculateGradePercentiles = (data, gradeRanges) => {
+  if (!data || !data.length) {
+    return Object.entries(gradeRanges).map(([grade, range]) => ({
+      grade,
+      range,
+      percentiles: {
+        grade1: 0,
+        grade2: 0,
+        grade3: 0
+      }
+    }));
+  }
+
   return Object.entries(gradeRanges).map(([grade, range]) => {
     const salariesInRange = data
       .filter(item => {
-        const salary = item.salary;
+        const salary = item?.salary || 0;
         return salary >= range.min && salary < range.max;
       })
-      .map(item => item.salary);
+      .map(item => item?.salary || 0);
 
     return {
       grade,
       range,
       percentiles: {
-        grade1: calculatePercentile(salariesInRange, 15), // 15-й перцентиль для grade1
-        grade2: calculatePercentile(salariesInRange, 50), // 50-й перцентиль для grade2
-        grade3: calculatePercentile(salariesInRange, 85)  // 85-й перцентиль для grade3
+        grade1: calculatePercentile(salariesInRange, 15),
+        grade2: calculatePercentile(salariesInRange, 50),
+        grade3: calculatePercentile(salariesInRange, 85)
       }
     };
   });
