@@ -74,77 +74,157 @@ function App() {
   const [assignGradeDialogOpen, setAssignGradeDialogOpen] = useState(false);
 
   const fetchData = useCallback(() => {
-    const params = {
-      position: selectedPosition,
-      ...(startDate && { start_date: startDate.toISOString().split('T')[0] }),
-      ...(endDate && { end_date: endDate.toISOString().split('T')[0] }),
-      step: rangeStep,
-    };
+    try {
+      console.log('Fetching data with params:', {
+        position: selectedPosition,
+        startDate: startDate?.toISOString().split('T')[0],
+        endDate: endDate?.toISOString().split('T')[0],
+        step: rangeStep
+      });
 
-    Promise.all([
-      getSalaryData(params),
-      getGradeStats(params)
-    ])
-      .then(([salaryResponse, statsResponse]) => {
-        setSalaryData(salaryResponse);
-        setGradeStats(statsResponse);
-      })
-      .catch(error => console.error('Error fetching data:', error));
+      const params = {
+        position: selectedPosition,
+        ...(startDate && { start_date: startDate.toISOString().split('T')[0] }),
+        ...(endDate && { end_date: endDate.toISOString().split('T')[0] }),
+        step: rangeStep,
+      };
+
+      Promise.all([
+        getSalaryData(params),
+        getGradeStats(params)
+      ])
+        .then(([salaryResponse, statsResponse]) => {
+          console.log('Salary data response:', salaryResponse);
+          console.log('Grade stats response:', statsResponse);
+          setSalaryData(salaryResponse);
+          setGradeStats(statsResponse);
+        })
+        .catch(error => {
+          console.error('Error fetching data:', error);
+          // Устанавливаем пустые данные в случае ошибки
+          setSalaryData({ ranges: [], vacancies: [], resumes: [], percentiles: { vacancies: [], resumes: [] } });
+          setGradeStats({ vacancies: [], resumes: [] });
+        });
+    } catch (error) {
+      console.error('Error in fetchData:', error);
+      // Устанавливаем пустые данные в случае ошибки
+      setSalaryData({ ranges: [], vacancies: [], resumes: [], percentiles: { vacancies: [], resumes: [] } });
+      setGradeStats({ vacancies: [], resumes: [] });
+    }
   }, [selectedPosition, startDate, endDate, rangeStep]);
 
   useEffect(() => {
     if (searchQuery.length >= 2) {
-      searchPositions(searchQuery)
-        .then(data => setSuggestions(data))
-        .catch(error => console.error('Error fetching suggestions:', error));
+      try {
+        console.log('Searching positions with query:', searchQuery);
+        searchPositions(searchQuery)
+          .then(data => {
+            console.log('Search results:', data);
+            setSuggestions(data);
+          })
+          .catch(error => {
+            console.error('Error fetching suggestions:', error);
+            setSuggestions([]);
+          });
+      } catch (error) {
+        console.error('Error in search effect:', error);
+        setSuggestions([]);
+      }
     }
   }, [searchQuery]);
 
   useEffect(() => {
     if (selectedPosition) {
+      console.log('Selected position changed:', selectedPosition);
       fetchData();
     }
   }, [selectedPosition, startDate, endDate, rangeStep, fetchData]);
 
   const handleEditClick = (grade) => {
-    const gradeStat = gradeStats.resumes.find(r => r.grade === grade);
-    if (gradeStat) {
-      setSelectedGrade(grade);
-      setMinSalary(gradeStat.salaryRange.min.toString());
-      setMaxSalary(gradeStat.salaryRange.max.toString());
-      setEditDialogOpen(true);
+    try {
+      console.log('Editing grade:', grade);
+      const gradeStat = gradeStats.resumes.find(r => r.grade === grade);
+      if (gradeStat) {
+        setSelectedGrade(grade);
+        setMinSalary(gradeStat.range.min.toString());
+        setMaxSalary(gradeStat.range.max.toString());
+        setEditDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Error in handleEditClick:', error);
     }
   };
 
   const handleSaveRange = () => {
-    if (selectedGrade && minSalary && maxSalary) {
-      updateGradeRange(selectedGrade, parseInt(minSalary), parseInt(maxSalary))
-        .then(updatedStats => {
-          setGradeStats(updatedStats);
-          setEditDialogOpen(false);
-        })
-        .catch(error => console.error('Error updating grade range:', error));
+    try {
+      if (selectedGrade && minSalary && maxSalary) {
+        console.log('Saving grade range:', {
+          grade: selectedGrade,
+          minSalary: parseInt(minSalary),
+          maxSalary: parseInt(maxSalary)
+        });
+        updateGradeRange(selectedGrade, parseInt(minSalary), parseInt(maxSalary))
+          .then(updatedStats => {
+            console.log('Updated grade stats:', updatedStats);
+            setGradeStats(updatedStats);
+            setEditDialogOpen(false);
+          })
+          .catch(error => {
+            console.error('Error updating grade range:', error);
+          });
+      }
+    } catch (error) {
+      console.error('Error in handleSaveRange:', error);
     }
   };
 
   const handleRangeClick = (range) => {
-    setSelectedRange(range);
-    setAssignGradeDialogOpen(true);
+    try {
+      console.log('Range clicked:', range);
+      setSelectedRange(range);
+      setAssignGradeDialogOpen(true);
+    } catch (error) {
+      console.error('Error in handleRangeClick:', error);
+    }
   };
 
   const handleAssignGrade = (grade) => {
-    if (selectedRange && grade) {
-      const [min, max] = selectedRange.split(' - ').map(val => 
-        parseInt(val.replace(/[^\d]/g, ''))
-      );
-      updateGradeRange(grade, min, max)
-        .then(() => {
-          setAssignGradeDialogOpen(false);
-          fetchData();
-        })
-        .catch(error => console.error('Error assigning grade:', error));
+    try {
+      if (selectedRange && grade) {
+        console.log('Assigning grade:', {
+          range: selectedRange,
+          grade: grade
+        });
+        const [min, max] = selectedRange.split(' - ').map(val => 
+          parseInt(val.replace(/[^\d]/g, ''))
+        );
+        updateGradeRange(grade, min, max)
+          .then(() => {
+            console.log('Grade assigned successfully');
+            setAssignGradeDialogOpen(false);
+            fetchData();
+          })
+          .catch(error => {
+            console.error('Error assigning grade:', error);
+          });
+      }
+    } catch (error) {
+      console.error('Error in handleAssignGrade:', error);
     }
   };
+
+  // Добавляем проверку на наличие данных перед рендерингом
+  if (!salaryData || !gradeStats) {
+    return (
+      <Container maxWidth="lg">
+        <Box sx={{ my: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom align="center">
+            Загрузка данных...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
 
   const chartData = {
     labels: salaryData.ranges,

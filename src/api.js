@@ -129,29 +129,100 @@ const calculateGradePercentiles = (data, gradeRanges) => {
   });
 };
 
+// Функция для валидации входных данных
+const validateParams = (params) => {
+  if (!params) {
+    throw new Error('Params are required');
+  }
+  if (params.step && (typeof params.step !== 'number' || params.step <= 0)) {
+    throw new Error('Step must be a positive number');
+  }
+  if (params.position && typeof params.position !== 'string') {
+    throw new Error('Position must be a string');
+  }
+  if (params.start_date && !Date.parse(params.start_date)) {
+    throw new Error('Invalid start date');
+  }
+  if (params.end_date && !Date.parse(params.end_date)) {
+    throw new Error('Invalid end date');
+  }
+};
+
+// Функция для фильтрации данных по параметрам
+const filterData = (data, params) => {
+  let filtered = [...data];
+  
+  if (params.position) {
+    filtered = filtered.filter(item => 
+      item.position?.toLowerCase().includes(params.position.toLowerCase())
+    );
+  }
+  
+  if (params.start_date) {
+    const startDate = new Date(params.start_date);
+    filtered = filtered.filter(item => 
+      new Date(item.date) >= startDate
+    );
+  }
+  
+  if (params.end_date) {
+    const endDate = new Date(params.end_date);
+    filtered = filtered.filter(item => 
+      new Date(item.date) <= endDate
+    );
+  }
+  
+  return filtered;
+};
+
 // Функции для работы с API
 export const searchPositions = (query) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const filtered = mockData.positions.filter(pos => 
-        pos.toLowerCase().includes(query.toLowerCase())
-      );
-      resolve(filtered);
-    }, 300);
+  return new Promise((resolve, reject) => {
+    try {
+      if (!query || typeof query !== 'string') {
+        throw new Error('Invalid search query');
+      }
+
+      console.log('Searching positions with query:', query);
+      
+      setTimeout(() => {
+        const filtered = mockData.positions.filter(pos => 
+          pos.toLowerCase().includes(query.toLowerCase())
+        );
+        console.log('Found positions:', filtered);
+        resolve(filtered);
+      }, 300);
+    } catch (error) {
+      console.error('Error in searchPositions:', error);
+      reject(error);
+    }
   });
 };
 
 export const getSalaryData = (params) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
+  return new Promise((resolve, reject) => {
+    try {
+      validateParams(params);
+      console.log('Getting salary data with params:', params);
+
       const step = params.step || 10000;
       const ranges = generateRanges(step);
-      const vacancyPercentages = countInRanges(mockData.salaryData.vacancies, ranges);
-      const resumePercentages = countInRanges(mockData.salaryData.resumes, ranges);
-      const vacancyPercentiles = calculateRangePercentiles(mockData.salaryData.vacancies, ranges);
-      const resumePercentiles = calculateRangePercentiles(mockData.salaryData.resumes, ranges);
+      
+      // Фильтруем данные по параметрам
+      const filteredVacancies = filterData(mockData.salaryData.vacancies, params);
+      const filteredResumes = filterData(mockData.salaryData.resumes, params);
+      
+      console.log('Filtered data:', {
+        vacancies: filteredVacancies,
+        resumes: filteredResumes
+      });
 
-      resolve({
+      const vacancyPercentages = countInRanges(filteredVacancies, ranges);
+      const resumePercentages = countInRanges(filteredResumes, ranges);
+      const vacancyPercentiles = calculateRangePercentiles(filteredVacancies, ranges);
+      const resumePercentiles = calculateRangePercentiles(filteredResumes, ranges);
+
+      const result = {
         ranges: ranges.map(r => r.label),
         vacancies: vacancyPercentages,
         resumes: resumePercentages,
@@ -159,32 +230,69 @@ export const getSalaryData = (params) => {
           vacancies: vacancyPercentiles,
           resumes: resumePercentiles
         }
-      });
-    }, 300);
+      };
+
+      console.log('Salary data result:', result);
+      resolve(result);
+    } catch (error) {
+      console.error('Error in getSalaryData:', error);
+      reject(error);
+    }
   });
 };
 
 export const getGradeStats = (params) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const vacancyGrades = calculateGradePercentiles(mockData.salaryData.vacancies, mockData.gradeRanges);
-      const resumeGrades = calculateGradePercentiles(mockData.salaryData.resumes, mockData.gradeRanges);
+  return new Promise((resolve, reject) => {
+    try {
+      validateParams(params);
+      console.log('Getting grade stats with params:', params);
 
-      resolve({
+      // Фильтруем данные по параметрам
+      const filteredVacancies = filterData(mockData.salaryData.vacancies, params);
+      const filteredResumes = filterData(mockData.salaryData.resumes, params);
+
+      const vacancyGrades = calculateGradePercentiles(filteredVacancies, mockData.gradeRanges);
+      const resumeGrades = calculateGradePercentiles(filteredResumes, mockData.gradeRanges);
+
+      const result = {
         vacancies: vacancyGrades,
         resumes: resumeGrades
-      });
-    }, 300);
+      };
+
+      console.log('Grade stats result:', result);
+      resolve(result);
+    } catch (error) {
+      console.error('Error in getGradeStats:', error);
+      reject(error);
+    }
   });
 };
 
 export const updateGradeRange = (grade, minSalary, maxSalary) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!grade || !mockData.gradeRanges[grade]) {
+        throw new Error('Invalid grade');
+      }
+      if (typeof minSalary !== 'number' || minSalary < 0) {
+        throw new Error('Invalid min salary');
+      }
+      if (typeof maxSalary !== 'number' || maxSalary <= minSalary) {
+        throw new Error('Invalid max salary');
+      }
+
+      console.log('Updating grade range:', { grade, minSalary, maxSalary });
+
       if (mockData.gradeRanges[grade]) {
         mockData.gradeRanges[grade] = { min: minSalary, max: maxSalary };
+        console.log('Updated grade ranges:', mockData.gradeRanges);
+        resolve(mockData.gradeRanges);
+      } else {
+        throw new Error('Grade not found');
       }
-      resolve(mockData.gradeRanges);
-    }, 300);
+    } catch (error) {
+      console.error('Error in updateGradeRange:', error);
+      reject(error);
+    }
   });
 }; 
