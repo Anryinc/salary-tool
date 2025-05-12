@@ -6,7 +6,6 @@ import {
   Autocomplete,
   Paper,
   Typography,
-  Slider,
   Button,
   Grid,
   Table,
@@ -15,34 +14,48 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { Line } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js';
-import { searchPositions, getSalaryData, getGradeStats } from './api';
+import { searchPositions, getSalaryData, getGradeStats, updateGradeRange } from './api';
+import EditIcon from '@mui/icons-material/Edit';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend
 );
 
 const GRADES = ['Intern', 'Junior', 'Middle', 'Senior', 'Lead'];
+const RANGE_STEPS = [
+  { value: 1000, label: '1 000 ₽' },
+  { value: 5000, label: '5 000 ₽' },
+  { value: 10000, label: '10 000 ₽' },
+  { value: 20000, label: '20 000 ₽' },
+];
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,16 +63,22 @@ function App() {
   const [selectedPosition, setSelectedPosition] = useState('');
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [salaryData, setSalaryData] = useState({ vacancies: [], resumes: [] });
+  const [salaryData, setSalaryData] = useState({ ranges: [], vacancies: [], resumes: [], percentiles: { vacancies: [], resumes: [] } });
   const [gradeStats, setGradeStats] = useState({ vacancies: [], resumes: [] });
-  const [gradeRange, setGradeRange] = useState([0, 4]);
-  const [isRangeSelectMode, setIsRangeSelectMode] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState(null);
+  const [minSalary, setMinSalary] = useState('');
+  const [maxSalary, setMaxSalary] = useState('');
+  const [rangeStep, setRangeStep] = useState(10000);
+  const [selectedRange, setSelectedRange] = useState(null);
+  const [assignGradeDialogOpen, setAssignGradeDialogOpen] = useState(false);
 
   const fetchData = useCallback(() => {
     const params = {
       position: selectedPosition,
       ...(startDate && { start_date: startDate.toISOString().split('T')[0] }),
       ...(endDate && { end_date: endDate.toISOString().split('T')[0] }),
+      step: rangeStep,
     };
 
     Promise.all([
@@ -71,7 +90,7 @@ function App() {
         setGradeStats(statsResponse);
       })
       .catch(error => console.error('Error fetching data:', error));
-  }, [selectedPosition, startDate, endDate]);
+  }, [selectedPosition, startDate, endDate, rangeStep]);
 
   useEffect(() => {
     if (searchQuery.length >= 2) {
@@ -85,24 +104,66 @@ function App() {
     if (selectedPosition) {
       fetchData();
     }
-  }, [selectedPosition, startDate, endDate, fetchData]);
+  }, [selectedPosition, startDate, endDate, rangeStep, fetchData]);
+
+  const handleEditClick = (grade) => {
+    const gradeStat = gradeStats.resumes.find(r => r.grade === grade);
+    if (gradeStat) {
+      setSelectedGrade(grade);
+      setMinSalary(gradeStat.salaryRange.min.toString());
+      setMaxSalary(gradeStat.salaryRange.max.toString());
+      setEditDialogOpen(true);
+    }
+  };
+
+  const handleSaveRange = () => {
+    if (selectedGrade && minSalary && maxSalary) {
+      updateGradeRange(selectedGrade, parseInt(minSalary), parseInt(maxSalary))
+        .then(updatedStats => {
+          setGradeStats(updatedStats);
+          setEditDialogOpen(false);
+        })
+        .catch(error => console.error('Error updating grade range:', error));
+    }
+  };
+
+  const handleRangeClick = (range) => {
+    setSelectedRange(range);
+    setAssignGradeDialogOpen(true);
+  };
+
+  const handleAssignGrade = (grade) => {
+    if (selectedRange && grade) {
+      const [min, max] = selectedRange.split(' - ').map(val => 
+        parseInt(val.replace(/[^\d]/g, ''))
+      );
+      updateGradeRange(grade, min, max)
+        .then(() => {
+          setAssignGradeDialogOpen(false);
+          fetchData();
+        })
+        .catch(error => console.error('Error assigning grade:', error));
+    }
+  };
 
   const chartData = {
-    labels: salaryData.vacancies.map(item => item.date),
+    labels: salaryData.ranges,
     datasets: [
       {
         label: 'Вакансии',
-        data: salaryData.vacancies.map(item => item.salary),
+        data: salaryData.vacancies,
+        backgroundColor: 'rgba(75, 192, 192, 0.8)',
         borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-        tension: 0.1,
+        borderWidth: 1,
+        order: 1,
       },
       {
         label: 'Резюме',
-        data: salaryData.resumes.map(item => item.salary),
-        borderColor: 'rgba(255, 99, 132, 0.5)',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        tension: 0.1,
+        data: salaryData.resumes,
+        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+        borderColor: 'rgb(255, 99, 132)',
+        borderWidth: 1,
+        order: 2,
       },
     ],
   };
@@ -115,16 +176,55 @@ function App() {
       },
       title: {
         display: true,
-        text: 'Динамика зарплат',
+        text: 'Распределение зарплат',
       },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const range = salaryData.ranges[context.dataIndex];
+            const percentiles = salaryData.percentiles.vacancies.find(p => p.range === range);
+            return [
+              `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`,
+              ...(percentiles ? [
+                `10-й перцентиль: ${percentiles.percentiles.p10?.toLocaleString()} ₽`,
+                `25-й перцентиль: ${percentiles.percentiles.p25?.toLocaleString()} ₽`,
+                `50-й перцентиль: ${percentiles.percentiles.p50?.toLocaleString()} ₽`,
+                `75-й перцентиль: ${percentiles.percentiles.p75?.toLocaleString()} ₽`,
+                `90-й перцентиль: ${percentiles.percentiles.p90?.toLocaleString()} ₽`
+              ] : [])
+            ];
+          }
+        }
+      }
+    },
+    onClick: (event, elements) => {
+      if (elements.length > 0) {
+        const index = elements[0].index;
+        handleRangeClick(salaryData.ranges[index]);
+      }
     },
     scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Диапазон зарплат',
+        },
+        ticks: {
+          maxRotation: 45,
+          minRotation: 45,
+        },
+      },
       y: {
         beginAtZero: true,
         title: {
           display: true,
-          text: 'Зарплата (₽)',
+          text: 'Процент от общего количества',
         },
+        ticks: {
+          callback: function(value) {
+            return value.toFixed(1) + '%';
+          }
+        }
       },
     },
   };
@@ -138,7 +238,7 @@ function App() {
           </Typography>
 
           <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
               <Autocomplete
                 freeSolo
                 options={suggestions}
@@ -155,7 +255,7 @@ function App() {
                 )}
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2}>
               <DatePicker
                 label="Начальная дата"
                 value={startDate}
@@ -163,7 +263,7 @@ function App() {
                 renderInput={(params) => <TextField {...params} fullWidth />}
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2}>
               <DatePicker
                 label="Конечная дата"
                 value={endDate}
@@ -171,33 +271,26 @@ function App() {
                 renderInput={(params) => <TextField {...params} fullWidth />}
               />
             </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Шаг диапазона</InputLabel>
+                <Select
+                  value={rangeStep}
+                  label="Шаг диапазона"
+                  onChange={(e) => setRangeStep(e.target.value)}
+                >
+                  {RANGE_STEPS.map((step) => (
+                    <MenuItem key={step.value} value={step.value}>
+                      {step.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
           </Grid>
 
           <Paper sx={{ p: 2, mb: 4 }}>
-            <Box sx={{ mb: 2 }}>
-              <Button
-                variant={isRangeSelectMode ? "contained" : "outlined"}
-                onClick={() => setIsRangeSelectMode(!isRangeSelectMode)}
-                sx={{ mb: 2 }}
-              >
-                {isRangeSelectMode ? "Отменить выбор диапазона" : "Выбрать диапазон грейдов"}
-              </Button>
-              {isRangeSelectMode && (
-                <Slider
-                  value={gradeRange}
-                  onChange={(_, newValue) => setGradeRange(newValue)}
-                  valueLabelDisplay="auto"
-                  step={1}
-                  marks={GRADES.map((grade, index) => ({
-                    value: index,
-                    label: grade,
-                  }))}
-                  min={0}
-                  max={4}
-                />
-              )}
-            </Box>
-            <Line data={chartData} options={chartOptions} />
+            <Bar data={chartData} options={chartOptions} />
           </Paper>
 
           <TableContainer component={Paper}>
@@ -205,26 +298,54 @@ function App() {
               <TableHead>
                 <TableRow>
                   <TableCell>Грейд</TableCell>
+                  <TableCell>Диапазон ЗП</TableCell>
+                  <TableCell>Перцентили</TableCell>
                   <TableCell align="right">Количество вакансий</TableCell>
                   <TableCell align="right">Средняя ЗП (вакансии)</TableCell>
                   <TableCell align="right">Количество резюме</TableCell>
                   <TableCell align="right">Средняя ЗП (резюме)</TableCell>
+                  <TableCell align="right">Действия</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {GRADES.map((grade, index) => {
+                {GRADES.map((grade) => {
                   const vacancyStat = gradeStats.vacancies.find(v => v.experience === grade);
                   const resumeStat = gradeStats.resumes.find(r => r.grade === grade);
                   return (
                     <TableRow key={grade}>
                       <TableCell>{grade}</TableCell>
+                      <TableCell>
+                        {resumeStat?.salaryRange && (
+                          `${resumeStat.salaryRange.min.toLocaleString()} - ${resumeStat.salaryRange.max.toLocaleString()} ₽`
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {resumeStat?.percentiles && (
+                          <Box>
+                            <Typography variant="body2">
+                              Грейд 1: {resumeStat.percentiles.grade1.toLocaleString()} ₽
+                            </Typography>
+                            <Typography variant="body2">
+                              Грейд 2: {resumeStat.percentiles.grade2.toLocaleString()} ₽
+                            </Typography>
+                            <Typography variant="body2">
+                              Грейд 3: {resumeStat.percentiles.grade3.toLocaleString()} ₽
+                            </Typography>
+                          </Box>
+                        )}
+                      </TableCell>
                       <TableCell align="right">{vacancyStat?.count || 0}</TableCell>
                       <TableCell align="right">
-                        {vacancyStat?.avg_salary ? Math.round(vacancyStat.avg_salary) : '-'} ₽
+                        {vacancyStat?.avg_salary ? Math.round(vacancyStat.avg_salary).toLocaleString() : '-'} ₽
                       </TableCell>
                       <TableCell align="right">{resumeStat?.count || 0}</TableCell>
                       <TableCell align="right">
-                        {resumeStat?.avg_salary ? Math.round(resumeStat.avg_salary) : '-'} ₽
+                        {resumeStat?.avg_salary ? Math.round(resumeStat.avg_salary).toLocaleString() : '-'} ₽
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton onClick={() => handleEditClick(grade)}>
+                          <EditIcon />
+                        </IconButton>
                       </TableCell>
                     </TableRow>
                   );
@@ -233,6 +354,68 @@ function App() {
             </Table>
           </TableContainer>
         </Box>
+
+        <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
+          <DialogTitle>Редактировать диапазон зарплат</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              <TextField
+                label="Минимальная ЗП"
+                type="number"
+                value={minSalary}
+                onChange={(e) => setMinSalary(e.target.value)}
+                fullWidth
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                label="Максимальная ЗП"
+                type="number"
+                value={maxSalary}
+                onChange={(e) => setMaxSalary(e.target.value)}
+                fullWidth
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditDialogOpen(false)}>Отмена</Button>
+            <Button onClick={handleSaveRange} variant="contained">Сохранить</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={assignGradeDialogOpen} onClose={() => setAssignGradeDialogOpen(false)}>
+          <DialogTitle>Назначить грейд для диапазона</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                Выбранный диапазон: {selectedRange}
+              </Typography>
+              <FormControl fullWidth sx={{ mt: 2 }}>
+                <InputLabel>Грейд</InputLabel>
+                <Select
+                  value={selectedGrade || ''}
+                  label="Грейд"
+                  onChange={(e) => setSelectedGrade(e.target.value)}
+                >
+                  {GRADES.map((grade) => (
+                    <MenuItem key={grade} value={grade}>
+                      {grade}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAssignGradeDialogOpen(false)}>Отмена</Button>
+            <Button 
+              onClick={() => handleAssignGrade(selectedGrade)} 
+              variant="contained"
+              disabled={!selectedGrade}
+            >
+              Назначить
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </LocalizationProvider>
   );
