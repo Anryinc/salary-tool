@@ -10,18 +10,40 @@ const mockData = {
     'Data Scientist',
     'Machine Learning Engineer',
     'QA Engineer',
-    'Product Manager'
+    'Product Manager',
+    'Шеф-повар',
+    'Повар',
+    'Су-повар',
+    'Повар-кондитер'
   ],
   salaryData: {
     vacancies: [
-      { date: '2024-01', salary: 150000 },
-      { date: '2024-02', salary: 155000 },
-      { date: '2024-03', salary: 160000 }
+      { position: 'Python Developer', date: '2024-01', salary: 150000 },
+      { position: 'Python Developer', date: '2024-02', salary: 155000 },
+      { position: 'Python Developer', date: '2024-03', salary: 160000 },
+      { position: 'Java Developer', date: '2024-01', salary: 145000 },
+      { position: 'Java Developer', date: '2024-02', salary: 150000 },
+      { position: 'Java Developer', date: '2024-03', salary: 155000 },
+      { position: 'Шеф-повар', date: '2024-01', salary: 120000 },
+      { position: 'Шеф-повар', date: '2024-02', salary: 125000 },
+      { position: 'Шеф-повар', date: '2024-03', salary: 130000 },
+      { position: 'Повар', date: '2024-01', salary: 80000 },
+      { position: 'Повар', date: '2024-02', salary: 85000 },
+      { position: 'Повар', date: '2024-03', salary: 90000 }
     ],
     resumes: [
-      { date: '2024-01', salary: 140000 },
-      { date: '2024-02', salary: 145000 },
-      { date: '2024-03', salary: 150000 }
+      { position: 'Python Developer', date: '2024-01', salary: 140000 },
+      { position: 'Python Developer', date: '2024-02', salary: 145000 },
+      { position: 'Python Developer', date: '2024-03', salary: 150000 },
+      { position: 'Java Developer', date: '2024-01', salary: 135000 },
+      { position: 'Java Developer', date: '2024-02', salary: 140000 },
+      { position: 'Java Developer', date: '2024-03', salary: 145000 },
+      { position: 'Шеф-повар', date: '2024-01', salary: 110000 },
+      { position: 'Шеф-повар', date: '2024-02', salary: 115000 },
+      { position: 'Шеф-повар', date: '2024-03', salary: 120000 },
+      { position: 'Повар', date: '2024-01', salary: 75000 },
+      { position: 'Повар', date: '2024-02', salary: 80000 },
+      { position: 'Повар', date: '2024-03', salary: 85000 }
     ]
   },
   gradeRanges: {
@@ -179,9 +201,22 @@ const filterData = (data, params) => {
   let filtered = [...data];
   
   if (params.position) {
-    filtered = filtered.filter(item => 
-      item.position?.toLowerCase().includes(params.position.toLowerCase())
-    );
+    // Разбиваем поисковый запрос на слова
+    const searchWords = params.position.toLowerCase().split(/\s+/);
+    
+    filtered = filtered.filter(item => {
+      if (!item.position) return false;
+      
+      // Разбиваем название должности на слова
+      const positionWords = item.position.toLowerCase().split(/\s+/);
+      
+      // Проверяем, что все слова из поискового запроса присутствуют в названии должности
+      return searchWords.every(searchWord => 
+        positionWords.some(positionWord => 
+          positionWord.includes(searchWord) || searchWord.includes(positionWord)
+        )
+      );
+    });
   }
   
   if (params.start_date) {
