@@ -33,7 +33,7 @@ class HHAPIParser:
                     return response.json()
                 elif response.status_code == 403:
                     print(f"Доступ запрещен. Попытка {attempt + 1} из {max_retries}")
-                    time.sleep(5 * (attempt + 1))  # Увеличиваем задержку с каждой попыткой
+                    time.sleep(5 * (attempt + 1))
                 else:
                     print(f"Ошибка {response.status_code}. Попытка {attempt + 1} из {max_retries}")
                     time.sleep(2 * (attempt + 1))
@@ -73,9 +73,57 @@ class HHAPIParser:
                 break
 
             page += 1
-            time.sleep(random.uniform(0.25, 0.5))  # Случайная задержка
+            time.sleep(random.uniform(0.25, 0.5))
 
         return all_vacancies[:max_items]
+
+    def parse_resumes_by_role(self, role_id: str, max_items: int = 100) -> List[Dict]:
+        all_resumes = []
+        page = 0
+        per_page = 20
+
+        while len(all_resumes) < max_items:
+            params = {
+                'professional_role': role_id,
+                'per_page': per_page,
+                'page': page,
+                'area': 1,  # Москва
+                'order_by': 'publication_time'
+            }
+
+            url = f"{self.base_url}/resumes"
+            data = self._make_request(url, params)
+
+            if not data or 'items' not in data:
+                break
+
+            resumes = data['items']
+            if not resumes:
+                break
+
+            # Получаем детальную информацию о каждом резюме
+            for resume in resumes:
+                try:
+                    resume_id = resume.get('id')
+                    if resume_id:
+                        detail_url = f"{self.base_url}/resumes/{resume_id}"
+                        detail_data = self._make_request(detail_url)
+                        if detail_data:
+                            all_resumes.append(detail_data)
+                            time.sleep(random.uniform(0.25, 0.5))
+                except Exception as e:
+                    print(f"Ошибка при получении деталей резюме {resume_id}: {e}")
+                    continue
+
+            print(f"Собрано: {len(all_resumes)} из {max_items} резюме для роли {role_id}")
+
+            if len(resumes) < per_page or len(all_resumes) >= max_items:
+                break
+
+            page += 1
+            time.sleep(random.uniform(0.25, 0.5))
+
+        return all_resumes[:max_items]
 
     def process_salary(self, salary: Optional[Dict]) -> tuple:
         if not salary:
@@ -107,7 +155,7 @@ def init_db():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     
-    # Обновляем структуру таблицы
+    # Создаем таблицу для вакансий
     cursor.execute('DROP TABLE IF EXISTS vacancies')
     cursor.execute('''
         CREATE TABLE vacancies (
@@ -130,6 +178,31 @@ def init_db():
             role_id TEXT
         )
     ''')
+
+    # Создаем таблицу для резюме
+    cursor.execute('DROP TABLE IF EXISTS resumes')
+    cursor.execute('''
+        CREATE TABLE resumes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            hh_id TEXT,
+            title TEXT,
+            salary_from INTEGER,
+            salary_to INTEGER,
+            salary_currency TEXT,
+            age INTEGER,
+            gender TEXT,
+            location TEXT,
+            experience_years INTEGER,
+            skills TEXT,
+            education TEXT,
+            languages TEXT,
+            url TEXT,
+            parsed_date TEXT,
+            parsed_month TEXT,
+            role_id TEXT
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -146,10 +219,7 @@ def save_vacancies_to_db(vacancies: List[Dict], role_id: str):
         try:
             salary_text, currency, (salary_from, salary_to) = parser.process_salary(vacancy.get('salary'))
             
-            # Получаем опыт работы
             experience = vacancy.get('experience', {}).get('name', 'Не указан')
-            
-            # Получаем навыки
             skills = ', '.join([skill.get('name', '') for skill in vacancy.get('key_skills', [])])
             
             cursor.execute('''
@@ -185,6 +255,78 @@ def save_vacancies_to_db(vacancies: List[Dict], role_id: str):
     conn.close()
     print(f"Сохранено {saved_count} вакансий для роли {role_id}")
 
+def save_resumes_to_db(resumes: List[Dict], role_id: str):
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    
+    parsed_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    parsed_month = datetime.now().strftime('%Y-%m')
+    saved_count = 0
+
+    for resume in resumes:
+        try:
+            # Обработка зарплаты
+            salary = resume.get('salary', {})
+            salary_from = salary.get('amount')
+            salary_to = salary.get('amount')  # В резюме обычно указывается одна сумма
+            salary_currency = salary.get('currency', 'RUR')
+            if salary_currency == 'RUR':
+                salary_currency = '₽'
+            elif salary_currency == 'USD':
+                salary_currency = '$'
+            elif salary_currency == 'EUR':
+                salary_currency = '€'
+
+            # Обработка навыков
+            skills = ', '.join([skill.get('name', '') for skill in resume.get('skills', [])])
+
+            # Обработка образования
+            education = []
+            for edu in resume.get('education', {}).get('primary', []):
+                if edu.get('name'):
+                    education.append(edu['name'])
+            education_str = '; '.join(education)
+
+            # Обработка языков
+            languages = []
+            for lang in resume.get('language', []):
+                if lang.get('name'):
+                    languages.append(lang['name'])
+            languages_str = '; '.join(languages)
+
+            cursor.execute('''
+                INSERT INTO resumes (
+                    hh_id, title, salary_from, salary_to, salary_currency,
+                    age, gender, location, experience_years, skills,
+                    education, languages, url, parsed_date, parsed_month, role_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                resume.get('id'),
+                resume.get('title', 'Не указано'),
+                salary_from,
+                salary_to,
+                salary_currency,
+                resume.get('age'),
+                resume.get('gender', {}).get('name', 'Не указано'),
+                resume.get('area', {}).get('name', 'Не указано'),
+                resume.get('total_experience', {}).get('months', 0) // 12,
+                skills,
+                education_str,
+                languages_str,
+                resume.get('alternate_url'),
+                parsed_date,
+                parsed_month,
+                role_id
+            ))
+            saved_count += 1
+        except Exception as e:
+            print(f"Ошибка при сохранении резюме {resume.get('id')}: {e}")
+            continue
+
+    conn.commit()
+    conn.close()
+    print(f"Сохранено {saved_count} резюме для роли {role_id}")
+
 def main():
     # Инициализируем базу данных
     init_db()
@@ -202,13 +344,25 @@ def main():
         for role in category.get('roles', []):
             role_ids.append(role['id'])
     
-    # Парсим вакансии для каждой роли
+    # Парсим вакансии и резюме для каждой роли
     for role_id in role_ids:
-        print(f"\nПарсинг вакансий для роли {role_id}")
+        print(f"\nПарсинг данных для роли {role_id}")
+        
+        # Парсим вакансии
+        print("Сбор вакансий...")
         vacancies = parser.parse_vacancies_by_role(role_id, max_items=100)
         if vacancies:
             save_vacancies_to_db(vacancies, role_id)
-        time.sleep(random.uniform(1, 2))  # Задержка между ролями
+        
+        time.sleep(random.uniform(1, 2))
+        
+        # Парсим резюме
+        print("Сбор резюме...")
+        resumes = parser.parse_resumes_by_role(role_id, max_items=100)
+        if resumes:
+            save_resumes_to_db(resumes, role_id)
+        
+        time.sleep(random.uniform(1, 2))
 
 if __name__ == "__main__":
     main()

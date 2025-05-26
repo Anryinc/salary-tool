@@ -1,88 +1,59 @@
 # Salary Tool
 
-Инструмент для сбора и анализа данных о зарплатах с hh.ru.
-
-## Описание
-
-Проект собирает данные о вакансиях с hh.ru по различным профессиональным ролям и сохраняет их в базу данных для последующего анализа. Сбор данных происходит автоматически два раза в неделю.
+Инструмент для анализа зарплат на основе данных с hh.ru
 
 ## Установка
 
-1. Клонируйте репозиторий:
-```bash
-git clone https://github.com/your-username/salary_tool.git
-cd salary_tool
-```
+### Бэкенд
 
+1. Установите Python 3.8 или выше
 2. Установите зависимости:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Использование
+### Фронтенд
 
-### Ручной запуск парсера
+1. Установите Node.js 16 или выше
+2. Перейдите в папку frontend:
 ```bash
-python parse_vacancies_resumes.py
+cd frontend
+```
+3. Установите зависимости:
+```bash
+npm install
 ```
 
-### Запуск планировщика
+## Запуск
+
+### Бэкенд
+
+1. Запустите API сервер:
 ```bash
-python scheduler.py
+python api.py
 ```
+Сервер будет доступен по адресу http://localhost:5000
+
+### Фронтенд
+
+1. В папке frontend запустите:
+```bash
+npm start
+```
+Приложение будет доступно по адресу http://localhost:3000
 
 ## Структура проекта
 
-- `parse_vacancies_resumes.py` - основной парсер данных
-- `scheduler.py` - планировщик автоматического сбора данных
-- `roles.json` - список профессиональных ролей
-- `database.db` - база данных SQLite
-- `parser.log` - лог-файл с информацией о работе парсера
-
-## Настройка автозапуска
-
-### Windows
-1. Создайте файл `start_scheduler.bat`:
-```batch
-@echo off
-cd /d %~dp0
-python scheduler.py
+```
+salary-tool/
+├── frontend/          # React приложение
+├── backend/           # Flask API
+└── data/             # Данные и база данных
 ```
 
-2. Создайте задачу в Планировщике задач Windows:
-   - Откройте "Планировщик задач"
-   - Создайте новую задачу
-   - Триггер: "При запуске компьютера"
-   - Действие: "Запустить программу"
-   - Укажите путь к `start_scheduler.bat`
-   - В настройках выберите "Запускать с наивысшими правами"
+## Функциональность
 
-### Linux
-1. Создайте systemd сервис:
-```bash
-sudo nano /etc/systemd/system/salary-tool.service
-```
-
-2. Добавьте конфигурацию:
-```ini
-[Unit]
-Description=Salary Tool Scheduler
-After=network.target
-
-[Service]
-Type=simple
-User=your-username
-WorkingDirectory=/path/to/salary_tool
-ExecStart=/usr/bin/python3 scheduler.py
-Restart=always
-RestartSec=300
-
-[Install]
-WantedBy=multi-user.target
-```
-
-3. Включите и запустите сервис:
-```bash
-sudo systemctl enable salary-tool
-sudo systemctl start salary-tool
-``` 
+- Поиск позиций
+- Анализ зарплат по грейдам
+- Графики динамики зарплат
+- Фильтрация по датам 
