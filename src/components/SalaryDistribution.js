@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -18,14 +18,6 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
-const gradeColors = {
-  Intern: 'rgba(255, 99, 132, 0.1)',
-  Junior: 'rgba(54, 162, 235, 0.1)',
-  Middle: 'rgba(255, 206, 86, 0.1)',
-  Senior: 'rgba(75, 192, 192, 0.1)',
-  Lead: 'rgba(153, 102, 255, 0.1)',
-};
 
 const SalaryDistribution = ({ salaryData, gradeRanges, onGradeRangeUpdate }) => {
   const [selectedRange, setSelectedRange] = useState(null);
