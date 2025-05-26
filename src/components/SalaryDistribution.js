@@ -65,10 +65,6 @@ const SalaryDistribution = ({ salaryData, gradeRanges, onGradeRangeUpdate }) => 
     },
   };
 
-  const handleRangeClick = (range) => {
-    setSelectedRange(range);
-  };
-
   const handleGradeChange = (e) => {
     const grade = e.target.value;
     setSelectedGrade(grade);
