@@ -39,6 +39,8 @@ import {
 } from 'chart.js';
 import { searchPositions, getSalaryData, getGradeStats, updateGradeRange } from './api';
 import EditIcon from '@mui/icons-material/Edit';
+import SalaryDistribution from './components/SalaryDistribution';
+import './App.css';
 
 ChartJS.register(
   CategoryScale,
@@ -72,6 +74,13 @@ function App() {
   const [rangeStep, setRangeStep] = useState(10000);
   const [selectedRange, setSelectedRange] = useState(null);
   const [assignGradeDialogOpen, setAssignGradeDialogOpen] = useState(false);
+  const [gradeRanges, setGradeRanges] = useState({
+    Intern: { min: 0, max: 60000 },
+    Junior: { min: 60000, max: 150000 },
+    Middle: { min: 150000, max: 260000 },
+    Senior: { min: 260000, max: 350000 },
+    Lead: { min: 350000, max: 470000 }
+  });
 
   const fetchData = useCallback(() => {
     try {
@@ -136,9 +145,11 @@ function App() {
   useEffect(() => {
     if (selectedPosition) {
       console.log('Selected position changed:', selectedPosition);
-      fetchData();
+      // No need to auto-fetch here anymore if we have a manual button
+      // Keep if you still want initial load or load on filter change
+      // fetchData();
     }
-  }, [selectedPosition, startDate, endDate, rangeStep, fetchData]);
+  }, [selectedPosition, startDate, endDate, rangeStep, fetchData]); // Remove fetchData if you remove the call inside
 
   const handleEditClick = (grade) => {
     try {
@@ -211,6 +222,30 @@ function App() {
     } catch (error) {
       console.error('Error in handleAssignGrade:', error);
     }
+  };
+
+  const handleGradeRangeUpdate = async (grade, range) => {
+    try {
+      const [min, max] = range.split(' - ').map(str => 
+        parseInt(str.replace(/[^\d]/g, ''))
+      );
+      
+      await updateGradeRange(grade, min, max);
+      setGradeRanges(prev => ({
+        ...prev,
+        [grade]: { min, max }
+      }));
+      
+      // Refresh salary data to reflect new grade ranges
+      await fetchData();
+    } catch (error) {
+      console.error('Error updating grade range:', error);
+    }
+  };
+
+  const handleLoadDataClick = () => {
+    console.log('Manual data load triggered for position:', selectedPosition);
+    fetchData(); // Call the existing data fetching function
   };
 
   // Добавляем проверку на наличие данных перед рендерингом
@@ -334,6 +369,17 @@ function App() {
                   />
                 )}
               />
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleLoadDataClick}
+                fullWidth
+                sx={{ height: '56px' }}
+              >
+                Подгрузить данные
+              </Button>
             </Grid>
             <Grid item xs={12} md={2}>
               <DatePicker
@@ -496,6 +542,12 @@ function App() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <SalaryDistribution 
+          salaryData={salaryData}
+          gradeRanges={gradeRanges}
+          onGradeRangeUpdate={handleGradeRangeUpdate}
+        />
       </Container>
     </LocalizationProvider>
   );
