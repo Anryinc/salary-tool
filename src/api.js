@@ -136,22 +136,27 @@ const generateTestData = (position) => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
-  // Генерируем новые данные
-  const newVacancies = [
-    {
-      position,
-      date,
-      salary: getRandomSalary(80000, 300000)
-    }
-  ];
+  // Генерируем больше данных для более реалистичной статистики
+  const newVacancies = Array.from({ length: 20 }, () => ({
+    position,
+    date,
+    salary: getRandomSalary(80000, 300000)
+  }));
 
-  const newResumes = [
-    {
-      position,
-      date,
-      salary: getRandomSalary(70000, 280000)
-    }
-  ];
+  const newResumes = Array.from({ length: 20 }, () => ({
+    position,
+    date,
+    salary: getRandomSalary(70000, 280000)
+  }));
+
+  console.log('Generated test data:', {
+    position,
+    date,
+    vacanciesCount: newVacancies.length,
+    resumesCount: newResumes.length,
+    sampleVacancy: newVacancies[0],
+    sampleResume: newResumes[0]
+  });
 
   return { newVacancies, newResumes };
 };
@@ -194,9 +199,20 @@ export const getSalaryData = async (params) => {
     // Генерируем и добавляем новые данные
     if (params.position) {
       const { newVacancies, newResumes } = generateTestData(params.position);
+      console.log('Adding new data to database:', {
+        position: params.position,
+        vacanciesCount: newVacancies.length,
+        resumesCount: newResumes.length
+      });
+
       const positionId = await getOrCreatePosition(db, params.position);
+      console.log('Position ID:', positionId);
+
       await addVacancies(db, positionId, newVacancies);
+      console.log('Added vacancies');
+
       await addResumes(db, positionId, newResumes);
+      console.log('Added resumes');
     }
 
     const step = params.step || 10000;
@@ -207,8 +223,10 @@ export const getSalaryData = async (params) => {
     const resumes = await getResumes(db, params);
     
     console.log('Data from database:', {
-      vacancies,
-      resumes
+      vacanciesCount: vacancies.length,
+      resumesCount: resumes.length,
+      sampleVacancy: vacancies[0],
+      sampleResume: resumes[0]
     });
 
     const vacancyPercentages = countInRanges(vacancies, ranges);
