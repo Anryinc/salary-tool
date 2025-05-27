@@ -1,21 +1,5 @@
-import {
-  initializeDatabase,
-  getOrCreatePosition,
-  addVacancies,
-  addResumes,
-  getAllPositions,
-  getVacancies,
-  getResumes
-} from './db';
-
-// Инициализация базы данных
-let db = null;
-initializeDatabase().then(database => {
-  db = database;
-  console.log('Database initialized');
-}).catch(error => {
-  console.error('Error initializing database:', error);
-});
+// Удаляем неиспользуемые импорты
+// ... existing code ...
 
 // Функция для расчета перцентиля
 const calculatePercentile = (data, percentile) => {
