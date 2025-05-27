@@ -170,17 +170,14 @@ export const searchPositions = async (query) => {
 
     console.log('Searching positions with query:', query);
     
-    if (!db) {
-      throw new Error('Database not initialized');
+    const response = await fetch(`/api/search_positions?query=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+      throw new Error('Failed to search positions');
     }
-
-    const positions = await getAllPositions(db);
-    const filtered = positions
-      .map(p => p.name)
-      .filter(pos => pos.toLowerCase().includes(query.toLowerCase()));
     
-    console.log('Found positions:', filtered);
-    return filtered;
+    const positions = await response.json();
+    console.log('Found positions:', positions);
+    return positions;
   } catch (error) {
     console.error('Error in searchPositions:', error);
     throw error;
@@ -192,10 +189,6 @@ export const getSalaryData = async (params) => {
     validateParams(params);
     console.log('Getting salary data with params:', params);
 
-    if (!db) {
-      throw new Error('Database not initialized');
-    }
-
     // Генерируем и добавляем новые данные
     if (params.position) {
       const { newVacancies, newResumes } = generateTestData(params.position);
@@ -205,34 +198,42 @@ export const getSalaryData = async (params) => {
         resumesCount: newResumes.length
       });
 
-      const positionId = await getOrCreatePosition(db, params.position);
-      console.log('Position ID:', positionId);
+      // Отправляем данные на сервер
+      const response = await fetch('/api/add_data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          position: params.position,
+          vacancies: newVacancies,
+          resumes: newResumes
+        })
+      });
 
-      await addVacancies(db, positionId, newVacancies);
-      console.log('Added vacancies');
+      if (!response.ok) {
+        throw new Error('Failed to add data');
+      }
 
-      await addResumes(db, positionId, newResumes);
-      console.log('Added resumes');
+      console.log('Data added successfully');
     }
+
+    // Получаем данные из базы
+    const response = await fetch(`/api/get_salary_data?${new URLSearchParams(params)}`);
+    if (!response.ok) {
+      throw new Error('Failed to get salary data');
+    }
+
+    const data = await response.json();
+    console.log('Data from database:', data);
 
     const step = params.step || 10000;
     const ranges = generateRanges(step);
     
-    // Получаем данные из базы
-    const vacancies = await getVacancies(db, params);
-    const resumes = await getResumes(db, params);
-    
-    console.log('Data from database:', {
-      vacanciesCount: vacancies.length,
-      resumesCount: resumes.length,
-      sampleVacancy: vacancies[0],
-      sampleResume: resumes[0]
-    });
-
-    const vacancyPercentages = countInRanges(vacancies, ranges);
-    const resumePercentages = countInRanges(resumes, ranges);
-    const vacancyPercentiles = calculateRangePercentiles(vacancies, ranges);
-    const resumePercentiles = calculateRangePercentiles(resumes, ranges);
+    const vacancyPercentages = countInRanges(data.vacancies, ranges);
+    const resumePercentages = countInRanges(data.resumes, ranges);
+    const vacancyPercentiles = calculateRangePercentiles(data.vacancies, ranges);
+    const resumePercentiles = calculateRangePercentiles(data.resumes, ranges);
 
     const result = {
       ranges: ranges.map(r => r.label),
@@ -257,56 +258,14 @@ export const getGradeStats = async (params) => {
     validateParams(params);
     console.log('Getting grade stats with params:', params);
 
-    if (!db) {
-      throw new Error('Database not initialized');
+    const response = await fetch(`/api/get_grade_stats?${new URLSearchParams(params)}`);
+    if (!response.ok) {
+      throw new Error('Failed to get grade stats');
     }
 
-    const vacancies = await getVacancies(db, params);
-    const resumes = await getResumes(db, params);
-
-    const gradeRanges = {
-      Intern: { min: 0, max: 60000 },
-      Junior: { min: 60000, max: 150000 },
-      Middle: { min: 150000, max: 260000 },
-      Senior: { min: 260000, max: 350000 },
-      Lead: { min: 350000, max: 470000 }
-    };
-
-    const calculateGradeStats = (data) => {
-      return Object.entries(gradeRanges).map(([grade, range]) => {
-        const salariesInRange = data
-          .filter(item => {
-            const salary = item?.salary || 0;
-            return salary >= range.min && salary < range.max;
-          })
-          .map(item => item?.salary || 0);
-
-        const count = salariesInRange.length;
-        const avgSalary = count > 0 
-          ? salariesInRange.reduce((a, b) => a + b, 0) / count 
-          : 0;
-
-        return {
-          grade,
-          range,
-          count,
-          avg_salary: avgSalary,
-          percentiles: {
-            grade1: calculatePercentile(salariesInRange, 15),
-            grade2: calculatePercentile(salariesInRange, 50),
-            grade3: calculatePercentile(salariesInRange, 85)
-          }
-        };
-      });
-    };
-
-    const result = {
-      vacancies: calculateGradeStats(vacancies),
-      resumes: calculateGradeStats(resumes)
-    };
-
-    console.log('Grade stats result:', result);
-    return result;
+    const data = await response.json();
+    console.log('Grade stats result:', data);
+    return data;
   } catch (error) {
     console.error('Error in getGradeStats:', error);
     throw error;
