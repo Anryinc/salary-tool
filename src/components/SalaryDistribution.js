@@ -20,7 +20,6 @@ ChartJS.register(
 );
 
 const SalaryDistribution = ({ salaryData, gradeRanges, onGradeRangeUpdate }) => {
-  const [selectedRange, setSelectedRange] = useState(null);
   const [selectedGrade, setSelectedGrade] = useState('');
 
   const data = {
@@ -68,9 +67,6 @@ const SalaryDistribution = ({ salaryData, gradeRanges, onGradeRangeUpdate }) => 
   const handleGradeChange = (e) => {
     const grade = e.target.value;
     setSelectedGrade(grade);
-    if (selectedRange && grade) {
-      onGradeRangeUpdate(grade, selectedRange);
-    }
   };
 
   return (
@@ -81,7 +77,6 @@ const SalaryDistribution = ({ salaryData, gradeRanges, onGradeRangeUpdate }) => 
       <div className="grade-customization">
         <h3>Настройка грейдов</h3>
         <div className="range-selector">
-          <p>Выберите диапазон: {selectedRange || 'Не выбран'}</p>
           <select value={selectedGrade} onChange={handleGradeChange}>
             <option value="">Выберите грейд</option>
             <option value="Intern">Intern</option>
