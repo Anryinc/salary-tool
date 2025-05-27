@@ -1,5 +1,5 @@
 // Моковые данные для демонстрации
-const mockData = {
+let mockData = {
   positions: [
     'Python Developer',
     'Java Developer',
@@ -236,6 +236,72 @@ const filterData = (data, params) => {
   return filtered;
 };
 
+// Функция для добавления новых данных
+const addNewData = (position, newVacancies, newResumes) => {
+  // Добавляем новую позицию, если её нет
+  if (!mockData.positions.includes(position)) {
+    mockData.positions.push(position);
+  }
+
+  // Добавляем новые вакансии
+  newVacancies.forEach(vacancy => {
+    // Проверяем, нет ли уже такой вакансии
+    const exists = mockData.salaryData.vacancies.some(
+      v => v.position === vacancy.position && 
+           v.date === vacancy.date && 
+           v.salary === vacancy.salary
+    );
+    if (!exists) {
+      mockData.salaryData.vacancies.push(vacancy);
+    }
+  });
+
+  // Добавляем новые резюме
+  newResumes.forEach(resume => {
+    // Проверяем, нет ли уже такого резюме
+    const exists = mockData.salaryData.resumes.some(
+      r => r.position === resume.position && 
+           r.date === resume.date && 
+           r.salary === resume.salary
+    );
+    if (!exists) {
+      mockData.salaryData.resumes.push(resume);
+    }
+  });
+};
+
+// Функция для генерации тестовых данных
+const generateTestData = (position) => {
+  const today = new Date();
+  const month = today.getMonth() + 1;
+  const year = today.getFullYear();
+  const date = `${year}-${month.toString().padStart(2, '0')}`;
+
+  // Генерируем случайную зарплату в диапазоне
+  const getRandomSalary = (min, max) => {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  };
+
+  // Генерируем новые данные
+  const newVacancies = [
+    {
+      position,
+      date,
+      salary: getRandomSalary(80000, 300000)
+    }
+  ];
+
+  const newResumes = [
+    {
+      position,
+      date,
+      salary: getRandomSalary(70000, 280000)
+    }
+  ];
+
+  return { newVacancies, newResumes };
+};
+
 // Функции для работы с API
 export const searchPositions = (query) => {
   return new Promise((resolve, reject) => {
@@ -265,6 +331,12 @@ export const getSalaryData = (params) => {
     try {
       validateParams(params);
       console.log('Getting salary data with params:', params);
+
+      // Генерируем и добавляем новые данные
+      if (params.position) {
+        const { newVacancies, newResumes } = generateTestData(params.position);
+        addNewData(params.position, newVacancies, newResumes);
+      }
 
       const step = params.step || 10000;
       const ranges = generateRanges(step);

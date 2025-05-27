@@ -23,6 +23,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  LinearProgress,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -81,6 +82,8 @@ function App() {
     Senior: { min: 260000, max: 350000 },
     Lead: { min: 350000, max: 470000 }
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   const fetchData = useCallback(() => {
     try {
@@ -243,9 +246,40 @@ function App() {
     }
   };
 
-  const handleLoadDataClick = () => {
-    console.log('Manual data load triggered for position:', selectedPosition);
-    fetchData(); // Call the existing data fetching function
+  const handleLoadDataClick = async () => {
+    try {
+      setIsLoading(true);
+      setLoadingProgress(0);
+      console.log('Manual data load triggered for position:', selectedPosition);
+
+      // Имитация прогресса парсинга
+      const progressInterval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 1000);
+
+      // Вызов функции загрузки данных
+      await fetchData();
+
+      // Завершение прогресса
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
+      
+      // Сброс прогресса через 2 секунды
+      setTimeout(() => {
+        setLoadingProgress(0);
+        setIsLoading(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setIsLoading(false);
+      setLoadingProgress(0);
+    }
   };
 
   // Добавляем проверку на наличие данных перед рендерингом
@@ -377,9 +411,22 @@ function App() {
                 onClick={handleLoadDataClick}
                 fullWidth
                 sx={{ height: '56px' }}
+                disabled={isLoading || !selectedPosition}
               >
-                Подгрузить данные
+                {isLoading ? 'Загрузка...' : 'Подгрузить данные'}
               </Button>
+              {isLoading && (
+                <Box sx={{ width: '100%', mt: 1 }}>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={loadingProgress} 
+                    sx={{ height: 10, borderRadius: 5 }}
+                  />
+                  <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
+                    {loadingProgress}%
+                  </Typography>
+                </Box>
+              )}
             </Grid>
             <Grid item xs={12} md={2}>
               <DatePicker
