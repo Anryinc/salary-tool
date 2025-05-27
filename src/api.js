@@ -1,59 +1,21 @@
-// Моковые данные для демонстрации
-let mockData = {
-  positions: [
-    'Python Developer',
-    'Java Developer',
-    'Frontend Developer',
-    'Backend Developer',
-    'Full Stack Developer',
-    'DevOps Engineer',
-    'Data Scientist',
-    'Machine Learning Engineer',
-    'QA Engineer',
-    'Product Manager',
-    'Шеф-повар',
-    'Повар',
-    'Су-повар',
-    'Повар-кондитер'
-  ],
-  salaryData: {
-    vacancies: [
-      { position: 'Python Developer', date: '2024-01', salary: 150000 },
-      { position: 'Python Developer', date: '2024-02', salary: 155000 },
-      { position: 'Python Developer', date: '2024-03', salary: 160000 },
-      { position: 'Java Developer', date: '2024-01', salary: 145000 },
-      { position: 'Java Developer', date: '2024-02', salary: 150000 },
-      { position: 'Java Developer', date: '2024-03', salary: 155000 },
-      { position: 'Шеф-повар', date: '2024-01', salary: 120000 },
-      { position: 'Шеф-повар', date: '2024-02', salary: 125000 },
-      { position: 'Шеф-повар', date: '2024-03', salary: 130000 },
-      { position: 'Повар', date: '2024-01', salary: 80000 },
-      { position: 'Повар', date: '2024-02', salary: 85000 },
-      { position: 'Повар', date: '2024-03', salary: 90000 }
-    ],
-    resumes: [
-      { position: 'Python Developer', date: '2024-01', salary: 140000 },
-      { position: 'Python Developer', date: '2024-02', salary: 145000 },
-      { position: 'Python Developer', date: '2024-03', salary: 150000 },
-      { position: 'Java Developer', date: '2024-01', salary: 135000 },
-      { position: 'Java Developer', date: '2024-02', salary: 140000 },
-      { position: 'Java Developer', date: '2024-03', salary: 145000 },
-      { position: 'Шеф-повар', date: '2024-01', salary: 110000 },
-      { position: 'Шеф-повар', date: '2024-02', salary: 115000 },
-      { position: 'Шеф-повар', date: '2024-03', salary: 120000 },
-      { position: 'Повар', date: '2024-01', salary: 75000 },
-      { position: 'Повар', date: '2024-02', salary: 80000 },
-      { position: 'Повар', date: '2024-03', salary: 85000 }
-    ]
-  },
-  gradeRanges: {
-    Intern: { min: 0, max: 60000 },
-    Junior: { min: 60000, max: 150000 },
-    Middle: { min: 150000, max: 260000 },
-    Senior: { min: 260000, max: 350000 },
-    Lead: { min: 350000, max: 470000 }
-  }
-};
+import {
+  initializeDatabase,
+  getOrCreatePosition,
+  addVacancies,
+  addResumes,
+  getAllPositions,
+  getVacancies,
+  getResumes
+} from './db';
+
+// Инициализация базы данных
+let db = null;
+initializeDatabase().then(database => {
+  db = database;
+  console.log('Database initialized');
+}).catch(error => {
+  console.error('Error initializing database:', error);
+});
 
 // Функция для расчета перцентиля
 const calculatePercentile = (data, percentile) => {
@@ -138,40 +100,6 @@ const calculateRangePercentiles = (data, ranges) => {
         p50: calculatePercentile(salariesInRange, 50),
         p75: calculatePercentile(salariesInRange, 75),
         p90: calculatePercentile(salariesInRange, 90)
-      }
-    };
-  });
-};
-
-// Функция для расчета грейдов
-const calculateGradePercentiles = (data, gradeRanges) => {
-  if (!data || !data.length) {
-    return Object.entries(gradeRanges).map(([grade, range]) => ({
-      grade,
-      range,
-      percentiles: {
-        grade1: 0,
-        grade2: 0,
-        grade3: 0
-      }
-    }));
-  }
-
-  return Object.entries(gradeRanges).map(([grade, range]) => {
-    const salariesInRange = data
-      .filter(item => {
-        const salary = item?.salary || 0;
-        return salary >= range.min && salary < range.max;
-      })
-      .map(item => item?.salary || 0);
-
-    return {
-      grade,
-      range,
-      percentiles: {
-        grade1: calculatePercentile(salariesInRange, 15),
-        grade2: calculatePercentile(salariesInRange, 50),
-        grade3: calculatePercentile(salariesInRange, 85)
       }
     };
   });
@@ -303,129 +231,170 @@ const generateTestData = (position) => {
 };
 
 // Функции для работы с API
-export const searchPositions = (query) => {
-  return new Promise((resolve, reject) => {
-    try {
-      if (!query || typeof query !== 'string') {
-        throw new Error('Invalid search query');
-      }
-
-      console.log('Searching positions with query:', query);
-      
-      setTimeout(() => {
-        const filtered = mockData.positions.filter(pos => 
-          pos.toLowerCase().includes(query.toLowerCase())
-        );
-        console.log('Found positions:', filtered);
-        resolve(filtered);
-      }, 300);
-    } catch (error) {
-      console.error('Error in searchPositions:', error);
-      reject(error);
+export const searchPositions = async (query) => {
+  try {
+    if (!query || typeof query !== 'string') {
+      throw new Error('Invalid search query');
     }
-  });
+
+    console.log('Searching positions with query:', query);
+    
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const positions = await getAllPositions(db);
+    const filtered = positions
+      .map(p => p.name)
+      .filter(pos => pos.toLowerCase().includes(query.toLowerCase()));
+    
+    console.log('Found positions:', filtered);
+    return filtered;
+  } catch (error) {
+    console.error('Error in searchPositions:', error);
+    throw error;
+  }
 };
 
-export const getSalaryData = (params) => {
-  return new Promise((resolve, reject) => {
-    try {
-      validateParams(params);
-      console.log('Getting salary data with params:', params);
+export const getSalaryData = async (params) => {
+  try {
+    validateParams(params);
+    console.log('Getting salary data with params:', params);
 
-      // Генерируем и добавляем новые данные
-      if (params.position) {
-        const { newVacancies, newResumes } = generateTestData(params.position);
-        addNewData(params.position, newVacancies, newResumes);
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    // Генерируем и добавляем новые данные
+    if (params.position) {
+      const { newVacancies, newResumes } = generateTestData(params.position);
+      const positionId = await getOrCreatePosition(db, params.position);
+      await addVacancies(db, positionId, newVacancies);
+      await addResumes(db, positionId, newResumes);
+    }
+
+    const step = params.step || 10000;
+    const ranges = generateRanges(step);
+    
+    // Получаем данные из базы
+    const vacancies = await getVacancies(db, params);
+    const resumes = await getResumes(db, params);
+    
+    console.log('Data from database:', {
+      vacancies,
+      resumes
+    });
+
+    const vacancyPercentages = countInRanges(vacancies, ranges);
+    const resumePercentages = countInRanges(resumes, ranges);
+    const vacancyPercentiles = calculateRangePercentiles(vacancies, ranges);
+    const resumePercentiles = calculateRangePercentiles(resumes, ranges);
+
+    const result = {
+      ranges: ranges.map(r => r.label),
+      vacancies: vacancyPercentages,
+      resumes: resumePercentages,
+      percentiles: {
+        vacancies: vacancyPercentiles,
+        resumes: resumePercentiles
       }
+    };
 
-      const step = params.step || 10000;
-      const ranges = generateRanges(step);
-      
-      // Фильтруем данные по параметрам
-      const filteredVacancies = filterData(mockData.salaryData.vacancies, params);
-      const filteredResumes = filterData(mockData.salaryData.resumes, params);
-      
-      console.log('Filtered data:', {
-        vacancies: filteredVacancies,
-        resumes: filteredResumes
+    console.log('Salary data result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in getSalaryData:', error);
+    throw error;
+  }
+};
+
+export const getGradeStats = async (params) => {
+  try {
+    validateParams(params);
+    console.log('Getting grade stats with params:', params);
+
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const vacancies = await getVacancies(db, params);
+    const resumes = await getResumes(db, params);
+
+    const gradeRanges = {
+      Intern: { min: 0, max: 60000 },
+      Junior: { min: 60000, max: 150000 },
+      Middle: { min: 150000, max: 260000 },
+      Senior: { min: 260000, max: 350000 },
+      Lead: { min: 350000, max: 470000 }
+    };
+
+    const calculateGradeStats = (data) => {
+      return Object.entries(gradeRanges).map(([grade, range]) => {
+        const salariesInRange = data
+          .filter(item => {
+            const salary = item?.salary || 0;
+            return salary >= range.min && salary < range.max;
+          })
+          .map(item => item?.salary || 0);
+
+        const count = salariesInRange.length;
+        const avgSalary = count > 0 
+          ? salariesInRange.reduce((a, b) => a + b, 0) / count 
+          : 0;
+
+        return {
+          grade,
+          range,
+          count,
+          avg_salary: avgSalary,
+          percentiles: {
+            grade1: calculatePercentile(salariesInRange, 15),
+            grade2: calculatePercentile(salariesInRange, 50),
+            grade3: calculatePercentile(salariesInRange, 85)
+          }
+        };
       });
+    };
 
-      const vacancyPercentages = countInRanges(filteredVacancies, ranges);
-      const resumePercentages = countInRanges(filteredResumes, ranges);
-      const vacancyPercentiles = calculateRangePercentiles(filteredVacancies, ranges);
-      const resumePercentiles = calculateRangePercentiles(filteredResumes, ranges);
+    const result = {
+      vacancies: calculateGradeStats(vacancies),
+      resumes: calculateGradeStats(resumes)
+    };
 
-      const result = {
-        ranges: ranges.map(r => r.label),
-        vacancies: vacancyPercentages,
-        resumes: resumePercentages,
-        percentiles: {
-          vacancies: vacancyPercentiles,
-          resumes: resumePercentiles
-        }
-      };
-
-      console.log('Salary data result:', result);
-      resolve(result);
-    } catch (error) {
-      console.error('Error in getSalaryData:', error);
-      reject(error);
-    }
-  });
+    console.log('Grade stats result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in getGradeStats:', error);
+    throw error;
+  }
 };
 
-export const getGradeStats = (params) => {
-  return new Promise((resolve, reject) => {
-    try {
-      validateParams(params);
-      console.log('Getting grade stats with params:', params);
-
-      // Фильтруем данные по параметрам
-      const filteredVacancies = filterData(mockData.salaryData.vacancies, params);
-      const filteredResumes = filterData(mockData.salaryData.resumes, params);
-
-      const vacancyGrades = calculateGradePercentiles(filteredVacancies, mockData.gradeRanges);
-      const resumeGrades = calculateGradePercentiles(filteredResumes, mockData.gradeRanges);
-
-      const result = {
-        vacancies: vacancyGrades,
-        resumes: resumeGrades
-      };
-
-      console.log('Grade stats result:', result);
-      resolve(result);
-    } catch (error) {
-      console.error('Error in getGradeStats:', error);
-      reject(error);
+export const updateGradeRange = async (grade, minSalary, maxSalary) => {
+  try {
+    if (!grade) {
+      throw new Error('Invalid grade');
     }
-  });
-};
-
-export const updateGradeRange = (grade, minSalary, maxSalary) => {
-  return new Promise((resolve, reject) => {
-    try {
-      if (!grade || !mockData.gradeRanges[grade]) {
-        throw new Error('Invalid grade');
-      }
-      if (typeof minSalary !== 'number' || minSalary < 0) {
-        throw new Error('Invalid min salary');
-      }
-      if (typeof maxSalary !== 'number' || maxSalary <= minSalary) {
-        throw new Error('Invalid max salary');
-      }
-
-      console.log('Updating grade range:', { grade, minSalary, maxSalary });
-
-      if (mockData.gradeRanges[grade]) {
-        mockData.gradeRanges[grade] = { min: minSalary, max: maxSalary };
-        console.log('Updated grade ranges:', mockData.gradeRanges);
-        resolve(mockData.gradeRanges);
-      } else {
-        throw new Error('Grade not found');
-      }
-    } catch (error) {
-      console.error('Error in updateGradeRange:', error);
-      reject(error);
+    if (typeof minSalary !== 'number' || minSalary < 0) {
+      throw new Error('Invalid min salary');
     }
-  });
+    if (typeof maxSalary !== 'number' || maxSalary <= minSalary) {
+      throw new Error('Invalid max salary');
+    }
+
+    console.log('Updating grade range:', { grade, minSalary, maxSalary });
+
+    // В реальном приложении здесь будет обновление диапазонов в базе данных
+    // Сейчас просто возвращаем обновленные данные
+    return {
+      Intern: { min: 0, max: 60000 },
+      Junior: { min: 60000, max: 150000 },
+      Middle: { min: 150000, max: 260000 },
+      Senior: { min: 260000, max: 350000 },
+      Lead: { min: 350000, max: 470000 },
+      [grade]: { min: minSalary, max: maxSalary }
+    };
+  } catch (error) {
+    console.error('Error in updateGradeRange:', error);
+    throw error;
+  }
 }; 
