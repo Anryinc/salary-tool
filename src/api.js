@@ -1,3 +1,5 @@
+import { API_URLS } from './config';
+
 // Удаляем неиспользуемые импорты
 // ... existing code ...
 
@@ -154,7 +156,7 @@ export const searchPositions = async (query) => {
 
     console.log('Searching positions with query:', query);
     
-    const response = await fetch(`/api/search_positions?query=${encodeURIComponent(query)}`);
+    const response = await fetch(`${API_URLS.SEARCH_POSITIONS}?query=${encodeURIComponent(query)}`);
     if (!response.ok) {
       throw new Error('Failed to search positions');
     }
@@ -183,7 +185,7 @@ export const getSalaryData = async (params) => {
       });
 
       // Отправляем данные на сервер
-      const response = await fetch('/api/add_data', {
+      const response = await fetch(API_URLS.ADD_DATA, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -203,7 +205,7 @@ export const getSalaryData = async (params) => {
     }
 
     // Получаем данные из базы
-    const response = await fetch(`/api/get_salary_data?${new URLSearchParams(params)}`);
+    const response = await fetch(`${API_URLS.GET_SALARY_DATA}?${new URLSearchParams(params)}`);
     if (!response.ok) {
       throw new Error('Failed to get salary data');
     }
@@ -242,7 +244,7 @@ export const getGradeStats = async (params) => {
     validateParams(params);
     console.log('Getting grade stats with params:', params);
 
-    const response = await fetch(`/api/get_grade_stats?${new URLSearchParams(params)}`);
+    const response = await fetch(`${API_URLS.GET_GRADE_STATS}?${new URLSearchParams(params)}`);
     if (!response.ok) {
       throw new Error('Failed to get grade stats');
     }
