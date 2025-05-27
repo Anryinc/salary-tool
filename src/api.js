@@ -124,46 +124,6 @@ const validateParams = (params) => {
   }
 };
 
-// Функция для фильтрации данных по параметрам
-const filterData = (data, params) => {
-  let filtered = [...data];
-  
-  if (params.position) {
-    // Разбиваем поисковый запрос на слова
-    const searchWords = params.position.toLowerCase().split(/\s+/);
-    
-    filtered = filtered.filter(item => {
-      if (!item.position) return false;
-      
-      // Разбиваем название должности на слова
-      const positionWords = item.position.toLowerCase().split(/\s+/);
-      
-      // Проверяем, что все слова из поискового запроса присутствуют в названии должности
-      return searchWords.every(searchWord => 
-        positionWords.some(positionWord => 
-          positionWord.includes(searchWord) || searchWord.includes(positionWord)
-        )
-      );
-    });
-  }
-  
-  if (params.start_date) {
-    const startDate = new Date(params.start_date);
-    filtered = filtered.filter(item => 
-      new Date(item.date) >= startDate
-    );
-  }
-  
-  if (params.end_date) {
-    const endDate = new Date(params.end_date);
-    filtered = filtered.filter(item => 
-      new Date(item.date) <= endDate
-    );
-  }
-  
-  return filtered;
-};
-
 // Функция для генерации тестовых данных
 const generateTestData = (position) => {
   const today = new Date();

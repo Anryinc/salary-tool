@@ -90,7 +90,6 @@ export const getVacancies = async (db, params) => {
   const tx = db.transaction('vacancies', 'readonly');
   const store = tx.objectStore('vacancies');
   const positionIndex = store.index('position_id');
-  const dateIndex = store.index('date');
 
   let vacancies = [];
 
@@ -123,7 +122,6 @@ export const getResumes = async (db, params) => {
   const tx = db.transaction('resumes', 'readonly');
   const store = tx.objectStore('resumes');
   const positionIndex = store.index('position_id');
-  const dateIndex = store.index('date');
 
   let resumes = [];
 
