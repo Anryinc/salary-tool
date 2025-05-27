@@ -41,12 +41,14 @@ export const getOrCreatePosition = async (db, positionName) => {
   const existingPosition = positions.find(p => p.name === positionName);
 
   if (existingPosition) {
+    await tx.done;
     return existingPosition.id;
   }
 
   // Если должность не найдена, создаем новую
   const newPosition = { name: positionName };
   const id = await store.add(newPosition);
+  await tx.done;
   return id;
 };
 
@@ -62,6 +64,7 @@ export const addVacancies = async (db, positionId, vacancies) => {
       salary: vacancy.salary
     });
   }
+  await tx.done;
 };
 
 // Добавление резюме
@@ -76,13 +79,16 @@ export const addResumes = async (db, positionId, resumes) => {
       salary: resume.salary
     });
   }
+  await tx.done;
 };
 
 // Получение всех должностей
 export const getAllPositions = async (db) => {
   const tx = db.transaction('positions', 'readonly');
   const store = tx.objectStore('positions');
-  return store.getAll();
+  const positions = await store.getAll();
+  await tx.done;
+  return positions;
 };
 
 // Получение вакансий с фильтрацией
@@ -99,6 +105,8 @@ export const getVacancies = async (db, params) => {
   } else {
     vacancies = await store.getAll();
   }
+
+  await tx.done;
 
   // Фильтрация по дате
   if (params.start_date || params.end_date) {
@@ -131,6 +139,8 @@ export const getResumes = async (db, params) => {
   } else {
     resumes = await store.getAll();
   }
+
+  await tx.done;
 
   // Фильтрация по дате
   if (params.start_date || params.end_date) {
