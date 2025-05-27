@@ -164,40 +164,6 @@ const filterData = (data, params) => {
   return filtered;
 };
 
-// Функция для добавления новых данных
-const addNewData = (position, newVacancies, newResumes) => {
-  // Добавляем новую позицию, если её нет
-  if (!mockData.positions.includes(position)) {
-    mockData.positions.push(position);
-  }
-
-  // Добавляем новые вакансии
-  newVacancies.forEach(vacancy => {
-    // Проверяем, нет ли уже такой вакансии
-    const exists = mockData.salaryData.vacancies.some(
-      v => v.position === vacancy.position && 
-           v.date === vacancy.date && 
-           v.salary === vacancy.salary
-    );
-    if (!exists) {
-      mockData.salaryData.vacancies.push(vacancy);
-    }
-  });
-
-  // Добавляем новые резюме
-  newResumes.forEach(resume => {
-    // Проверяем, нет ли уже такого резюме
-    const exists = mockData.salaryData.resumes.some(
-      r => r.position === resume.position && 
-           r.date === resume.date && 
-           r.salary === resume.salary
-    );
-    if (!exists) {
-      mockData.salaryData.resumes.push(resume);
-    }
-  });
-};
-
 // Функция для генерации тестовых данных
 const generateTestData = (position) => {
   const today = new Date();
