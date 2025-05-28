@@ -14,8 +14,19 @@ export const generateTestData = async (position) => {
 
   try {
     // Проверяем наличие данных в основной БД
-    const existingData = await fetch(`/api/data/${position}`).then(res => res.json());
-    console.log('Existing data from main database:', existingData);
+    let existingData = null;
+    try {
+      const response = await fetch(`/api/data/${position}`);
+      if (response.ok) {
+        existingData = await response.json();
+        console.log('Existing data from main database:', existingData);
+      } else {
+        console.log('No existing data found in main database');
+      }
+    } catch (error) {
+      console.log('Error fetching from main database:', error);
+      // Продолжаем выполнение, генерируя новые данные
+    }
 
     if (existingData && existingData.vacancies && existingData.resumes) {
       console.log('Using existing data from main database');
@@ -40,8 +51,8 @@ export const generateTestData = async (position) => {
       };
     }
 
-    // Если данных нет, генерируем новые
-    console.log('No existing data found, generating new data...');
+    // Если данных нет или произошла ошибка, генерируем новые
+    console.log('Generating new data...');
 
     // Генерируем 1500 вакансий (лимит HH.ru в день)
     const vacancies = Array.from({ length: 1500 }, (_, i) => ({
@@ -82,19 +93,28 @@ export const generateTestData = async (position) => {
       sampleResume: resumes[0]
     });
 
-    // Сохраняем данные в основную БД
-    console.log('Saving data to main database...');
-    await fetch('/api/data', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        position,
-        vacancies,
-        resumes
-      })
-    });
+    // Пытаемся сохранить данные в основную БД
+    try {
+      console.log('Attempting to save data to main database...');
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          position,
+          vacancies,
+          resumes
+        })
+      });
+      
+      if (!response.ok) {
+        console.log('Failed to save to main database, continuing with IndexedDB only');
+      }
+    } catch (error) {
+      console.log('Error saving to main database:', error);
+      // Продолжаем выполнение, сохраняя только в IndexedDB
+    }
 
     // Сохраняем данные в IndexedDB
     console.log('Saving data to IndexedDB...');

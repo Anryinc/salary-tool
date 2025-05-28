@@ -85,6 +85,7 @@ function App() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [notification, setNotification] = useState(null);
 
   const fetchData = useCallback(() => {
     try {
@@ -248,52 +249,73 @@ function App() {
   };
 
   const handleLoadDataClick = async () => {
-    try {
-      setIsLoading(true);
-      setLoadingProgress(0);
+    if (!selectedPosition) {
+      setNotification({
+        message: 'Пожалуйста, выберите должность',
+        type: 'error'
+      });
+      return;
+    }
 
-      // Удаляем старую базу данных IndexedDB
+    setIsLoading(true);
+    setLoadingProgress(0);
+    setNotification(null);
+
+    try {
+      // Удаляем старую БД IndexedDB
+      console.log('Removing old IndexedDB database...');
       await deleteDatabase();
-      setLoadingProgress(20);
+      console.log('Old database removed');
 
       // Генерируем или получаем тестовые данные
+      console.log('Loading data for position:', selectedPosition);
       const result = await generateTestData(selectedPosition);
       console.log('Data loading result:', result);
-      setLoadingProgress(60);
 
-      // Обновляем данные на странице
-      const params = {
-        position: selectedPosition,
-        ...(startDate && { start_date: startDate.toISOString().split('T')[0] }),
-        ...(endDate && { end_date: endDate.toISOString().split('T')[0] }),
-        step: rangeStep
-      };
+      // Обновляем данные
+      setSalaryData({
+        vacancies: result.vacancies,
+        resumes: result.resumes,
+        percentiles: {
+          P25: 0,
+          P50: 0,
+          P75: 0
+        }
+      });
 
-      const [salaryResponse, statsResponse] = await Promise.all([
-        getSalaryData(params),
-        getGradeStats(params)
-      ]);
+      // Обновляем статистику по грейдам
+      const gradeStats = await getGradeStats({ position: selectedPosition });
+      setGradeStats(gradeStats);
 
-      console.log('Salary data response:', salaryResponse);
-      console.log('Grade stats response:', statsResponse);
-
-      setSalaryData(salaryResponse);
-      setGradeStats(statsResponse);
-      setLoadingProgress(100);
-
-      // Показываем уведомление о источнике данных
-      const message = result.source === 'existing' 
-        ? 'Данные загружены из основной базы данных'
-        : 'Сгенерированы и сохранены новые данные';
-      console.log(message);
-
-      setIsLoading(false);
+      // Показываем уведомление об источнике данных
+      setNotification({
+        message: result.source === 'existing' 
+          ? 'Данные загружены из основной базы данных' 
+          : 'Сгенерированы новые тестовые данные',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error loading data:', error);
-      setIsLoading(false);
+      setNotification({
+        message: 'Ошибка при загрузке данных. Пожалуйста, попробуйте еще раз.',
+        type: 'error'
+      });
       // Устанавливаем пустые данные в случае ошибки
-      setSalaryData({ ranges: [], vacancies: [], resumes: [], percentiles: { vacancies: [], resumes: [] } });
-      setGradeStats({ vacancies: [], resumes: [] });
+      setSalaryData({
+        vacancies: [],
+        resumes: [],
+        percentiles: {
+          P25: 0,
+          P50: 0,
+          P75: 0
+        }
+      });
+      setGradeStats({
+        vacancies: [],
+        resumes: []
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
