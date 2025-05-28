@@ -268,11 +268,13 @@ function App() {
       console.log('Removing old IndexedDB database...');
       await deleteDatabase();
       console.log('Old database removed');
+      setLoadingProgress(10);
 
       // Генерируем или получаем тестовые данные
       console.log('Loading data for position:', selectedPosition);
       const result = await generateTestData(selectedPosition);
       console.log('Data loading result:', result);
+      setLoadingProgress(90);
 
       // Обновляем данные
       setSalaryData({
@@ -288,12 +290,11 @@ function App() {
       // Обновляем статистику по грейдам
       const gradeStats = await getGradeStats({ position: selectedPosition });
       setGradeStats(gradeStats);
+      setLoadingProgress(100);
 
       // Показываем уведомление об источнике данных
       setNotification({
-        message: result.source === 'existing' 
-          ? 'Данные загружены из основной базы данных' 
-          : 'Сгенерированы новые тестовые данные',
+        message: 'Данные успешно загружены',
         type: 'success'
       });
     } catch (error) {

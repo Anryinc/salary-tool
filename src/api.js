@@ -13,45 +13,7 @@ export const generateTestData = async (position) => {
   console.log('Generating test data for position:', position);
 
   try {
-    // Проверяем наличие данных в основной БД
-    let existingData = null;
-    try {
-      const response = await fetch(`/api/data/${position}`);
-      if (response.ok) {
-        existingData = await response.json();
-        console.log('Existing data from main database:', existingData);
-      } else {
-        console.log('No existing data found in main database');
-      }
-    } catch (error) {
-      console.log('Error fetching from main database:', error);
-      // Продолжаем выполнение, генерируя новые данные
-    }
-
-    if (existingData && existingData.vacancies && existingData.resumes) {
-      console.log('Using existing data from main database');
-      
-      // Сохраняем существующие данные в IndexedDB
-      const positionId = await getOrCreatePosition(position);
-      console.log('Position ID:', positionId);
-
-      console.log('Adding existing vacancies to IndexedDB...');
-      const vacancyResults = await addVacancies(existingData.vacancies);
-      console.log('Vacancies added:', vacancyResults);
-
-      console.log('Adding existing resumes to IndexedDB...');
-      const resumeResults = await addResumes(existingData.resumes);
-      console.log('Resumes added:', resumeResults);
-
-      return {
-        positionId,
-        vacancies: vacancyResults,
-        resumes: resumeResults,
-        source: 'existing'
-      };
-    }
-
-    // Если данных нет или произошла ошибка, генерируем новые
+    // Генерируем данные
     console.log('Generating new data...');
 
     // Генерируем 1500 вакансий (лимит HH.ru в день)
@@ -93,41 +55,39 @@ export const generateTestData = async (position) => {
       sampleResume: resumes[0]
     });
 
-    // Пытаемся сохранить данные в основную БД
-    try {
-      console.log('Attempting to save data to main database...');
-      const response = await fetch('/api/data', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          position,
-          vacancies,
-          resumes
-        })
-      });
-      
-      if (!response.ok) {
-        console.log('Failed to save to main database, continuing with IndexedDB only');
-      }
-    } catch (error) {
-      console.log('Error saving to main database:', error);
-      // Продолжаем выполнение, сохраняя только в IndexedDB
-    }
-
     // Сохраняем данные в IndexedDB
     console.log('Saving data to IndexedDB...');
     const positionId = await getOrCreatePosition(position);
     console.log('Position ID:', positionId);
 
-    console.log('Adding vacancies to IndexedDB...');
-    const vacancyResults = await addVacancies(vacancies);
-    console.log('Vacancies added:', vacancyResults);
+    // Разбиваем данные на чанки по 100 записей
+    const CHUNK_SIZE = 100;
+    const vacancyChunks = [];
+    const resumeChunks = [];
 
-    console.log('Adding resumes to IndexedDB...');
-    const resumeResults = await addResumes(resumes);
-    console.log('Resumes added:', resumeResults);
+    for (let i = 0; i < vacancies.length; i += CHUNK_SIZE) {
+      vacancyChunks.push(vacancies.slice(i, i + CHUNK_SIZE));
+    }
+
+    for (let i = 0; i < resumes.length; i += CHUNK_SIZE) {
+      resumeChunks.push(resumes.slice(i, i + CHUNK_SIZE));
+    }
+
+    console.log('Adding vacancies to IndexedDB in chunks...');
+    let vacancyResults = [];
+    for (const chunk of vacancyChunks) {
+      const results = await addVacancies(chunk);
+      vacancyResults = vacancyResults.concat(results);
+    }
+    console.log('Vacancies added:', vacancyResults.length);
+
+    console.log('Adding resumes to IndexedDB in chunks...');
+    let resumeResults = [];
+    for (const chunk of resumeChunks) {
+      const results = await addResumes(chunk);
+      resumeResults = resumeResults.concat(results);
+    }
+    console.log('Resumes added:', resumeResults.length);
 
     return {
       positionId,
