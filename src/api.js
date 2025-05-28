@@ -156,14 +156,27 @@ export const searchPositions = async (query) => {
 
     console.log('Searching positions with query:', query);
     
-    const response = await fetch(`${API_URLS.SEARCH_POSITIONS}?query=${encodeURIComponent(query)}`);
-    if (!response.ok) {
-      throw new Error('Failed to search positions');
-    }
-    
-    const positions = await response.json();
-    console.log('Found positions:', positions);
-    return positions;
+    // Временные тестовые данные для поиска
+    const mockPositions = [
+      'ios разработчик',
+      'ios developer',
+      'ios инженер',
+      'ios engineer',
+      'ios программист',
+      'ios software engineer',
+      'ios архитектор',
+      'ios team lead',
+      'ios tech lead',
+      'ios senior developer'
+    ];
+
+    // Фильтруем позиции по запросу
+    const filteredPositions = mockPositions.filter(position => 
+      position.toLowerCase().includes(query.toLowerCase())
+    );
+
+    console.log('Found positions:', filteredPositions);
+    return filteredPositions;
   } catch (error) {
     console.error('Error in searchPositions:', error);
     throw error;
