@@ -262,13 +262,32 @@ function App() {
       setLoadingProgress(60);
 
       // Обновляем данные на странице
-      await fetchData();
+      const params = {
+        position: selectedPosition,
+        ...(startDate && { start_date: startDate.toISOString().split('T')[0] }),
+        ...(endDate && { end_date: endDate.toISOString().split('T')[0] }),
+        step: rangeStep
+      };
+
+      const [salaryResponse, statsResponse] = await Promise.all([
+        getSalaryData(params),
+        getGradeStats(params)
+      ]);
+
+      console.log('Salary data response:', salaryResponse);
+      console.log('Grade stats response:', statsResponse);
+
+      setSalaryData(salaryResponse);
+      setGradeStats(statsResponse);
       setLoadingProgress(100);
 
       setIsLoading(false);
     } catch (error) {
       console.error('Error loading data:', error);
       setIsLoading(false);
+      // Устанавливаем пустые данные в случае ошибки
+      setSalaryData({ ranges: [], vacancies: [], resumes: [], percentiles: { vacancies: [], resumes: [] } });
+      setGradeStats({ vacancies: [], resumes: [] });
     }
   };
 
@@ -286,11 +305,11 @@ function App() {
   }
 
   const chartData = {
-    labels: salaryData.ranges,
+    labels: salaryData.ranges || [],
     datasets: [
       {
         label: 'Вакансии',
-        data: salaryData.vacancies,
+        data: salaryData.vacancies || [],
         backgroundColor: 'rgba(75, 192, 192, 0.8)',
         borderColor: 'rgb(75, 192, 192)',
         borderWidth: 1,
@@ -298,7 +317,7 @@ function App() {
       },
       {
         label: 'Резюме',
-        data: salaryData.resumes,
+        data: salaryData.resumes || [],
         backgroundColor: 'rgba(255, 99, 132, 0.5)',
         borderColor: 'rgb(255, 99, 132)',
         borderWidth: 1,
@@ -321,23 +340,40 @@ function App() {
         callbacks: {
           label: function(context) {
             const range = salaryData.ranges[context.dataIndex];
-            const percentiles = salaryData.percentiles.vacancies.find(p => p.range === range);
-            return [
-              `${context.dataset.label}: ${(context.parsed.y || 0).toFixed(1)}%`,
-              ...(percentiles ? [
-                `10-й перцентиль: ${(percentiles.percentiles.p10 || 0).toLocaleString()} ₽`,
-                `25-й перцентиль: ${(percentiles.percentiles.p25 || 0).toLocaleString()} ₽`,
-                `50-й перцентиль: ${(percentiles.percentiles.p50 || 0).toLocaleString()} ₽`,
-                `75-й перцентиль: ${(percentiles.percentiles.p75 || 0).toLocaleString()} ₽`,
-                `90-й перцентиль: ${(percentiles.percentiles.p90 || 0).toLocaleString()} ₽`
-              ] : [])
+            const percentiles = salaryData.percentiles?.vacancies?.[context.dataIndex]?.percentiles;
+            const resumePercentiles = salaryData.percentiles?.resumes?.[context.dataIndex]?.percentiles;
+            
+            const labels = [
+              `${context.dataset.label}: ${(context.parsed.y || 0).toFixed(1)}%`
             ];
+
+            if (percentiles && context.dataset.label === 'Вакансии') {
+              labels.push(
+                `P10: ${(percentiles.p10 || 0).toLocaleString()} ₽`,
+                `P25: ${(percentiles.p25 || 0).toLocaleString()} ₽`,
+                `P50: ${(percentiles.p50 || 0).toLocaleString()} ₽`,
+                `P75: ${(percentiles.p75 || 0).toLocaleString()} ₽`,
+                `P90: ${(percentiles.p90 || 0).toLocaleString()} ₽`
+              );
+            }
+
+            if (resumePercentiles && context.dataset.label === 'Резюме') {
+              labels.push(
+                `P10: ${(resumePercentiles.p10 || 0).toLocaleString()} ₽`,
+                `P25: ${(resumePercentiles.p25 || 0).toLocaleString()} ₽`,
+                `P50: ${(resumePercentiles.p50 || 0).toLocaleString()} ₽`,
+                `P75: ${(resumePercentiles.p75 || 0).toLocaleString()} ₽`,
+                `P90: ${(resumePercentiles.p90 || 0).toLocaleString()} ₽`
+              );
+            }
+
+            return labels;
           }
         }
       }
     },
     onClick: (event, elements) => {
-      if (elements.length > 0) {
+      if (elements && elements.length > 0) {
         const index = elements[0].index;
         handleRangeClick(salaryData.ranges[index]);
       }

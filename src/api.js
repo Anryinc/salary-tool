@@ -93,7 +93,7 @@ export const searchPositions = async (query) => {
 
 // Получение данных о зарплатах
 export const getSalaryData = async (params) => {
-  const { position, start_date, end_date } = params;
+  const { position, start_date, end_date, step = 10000 } = params;
   
   if (!position) {
     console.warn('No position provided for getSalaryData');
@@ -116,28 +116,89 @@ export const getSalaryData = async (params) => {
       resumes: resumes.length
     });
 
-    // Расчет статистики
-    const calculateStats = (items) => {
-      if (items.length === 0) return null;
+    // Находим минимальную и максимальную зарплату
+    const allSalaries = [...vacancies, ...resumes].map(item => item.salary);
+    const minSalary = Math.floor(Math.min(...allSalaries) / step) * step;
+    const maxSalary = Math.ceil(Math.max(...allSalaries) / step) * step;
 
-      const salaries = items.map(item => item.salary).sort((a, b) => a - b);
-      const len = salaries.length;
+    // Создаем диапазоны
+    const ranges = [];
+    for (let i = minSalary; i < maxSalary; i += step) {
+      ranges.push(`${i.toLocaleString()} - ${(i + step).toLocaleString()} ₽`);
+    }
 
-      return {
-        min: salaries[0],
-        max: salaries[len - 1],
-        median: len % 2 === 0 
-          ? (salaries[len/2 - 1] + salaries[len/2]) / 2 
-          : salaries[Math.floor(len/2)],
-        p25: salaries[Math.floor(len * 0.25)],
-        p75: salaries[Math.floor(len * 0.75)],
-        count: len
-      };
+    // Функция для подсчета количества в диапазоне
+    const countInRange = (items, min, max) => {
+      return items.filter(item => item.salary >= min && item.salary < max).length;
     };
 
+    // Функция для расчета перцентилей
+    const calculatePercentiles = (items, min, max) => {
+      const filtered = items.filter(item => item.salary >= min && item.salary < max)
+        .map(item => item.salary)
+        .sort((a, b) => a - b);
+      
+      if (filtered.length === 0) return null;
+
+      const p10 = filtered[Math.floor(filtered.length * 0.1)];
+      const p25 = filtered[Math.floor(filtered.length * 0.25)];
+      const p50 = filtered[Math.floor(filtered.length * 0.5)];
+      const p75 = filtered[Math.floor(filtered.length * 0.75)];
+      const p90 = filtered[Math.floor(filtered.length * 0.9)];
+
+      return { p10, p25, p50, p75, p90 };
+    };
+
+    // Считаем количество в каждом диапазоне
+    const vacancyCounts = ranges.map((_, i) => {
+      const min = minSalary + i * step;
+      const max = min + step;
+      return countInRange(vacancies, min, max);
+    });
+
+    const resumeCounts = ranges.map((_, i) => {
+      const min = minSalary + i * step;
+      const max = min + step;
+      return countInRange(resumes, min, max);
+    });
+
+    // Рассчитываем перцентили для каждого диапазона
+    const percentiles = {
+      vacancies: ranges.map((range, i) => {
+        const min = minSalary + i * step;
+        const max = min + step;
+        return {
+          range,
+          percentiles: calculatePercentiles(vacancies, min, max)
+        };
+      }),
+      resumes: ranges.map((range, i) => {
+        const min = minSalary + i * step;
+        const max = min + step;
+        return {
+          range,
+          percentiles: calculatePercentiles(resumes, min, max)
+        };
+      })
+    };
+
+    // Нормализуем данные для отображения в процентах
+    const totalVacancies = vacancies.length;
+    const totalResumes = resumes.length;
+
+    const normalizedVacancies = vacancyCounts.map(count => 
+      totalVacancies > 0 ? (count / totalVacancies) * 100 : 0
+    );
+
+    const normalizedResumes = resumeCounts.map(count => 
+      totalResumes > 0 ? (count / totalResumes) * 100 : 0
+    );
+
     return {
-      vacancies: calculateStats(vacancies),
-      resumes: calculateStats(resumes)
+      ranges,
+      vacancies: normalizedVacancies,
+      resumes: normalizedResumes,
+      percentiles
     };
   } catch (error) {
     console.error('Error in getSalaryData:', error);
