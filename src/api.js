@@ -1,4 +1,5 @@
 import { API_URLS } from './config';
+import { getOrCreatePosition, addVacancies, addResumes, getVacancies, getResumes } from './db';
 
 // Удаляем неиспользуемые импорты
 // ... existing code ...
@@ -110,165 +111,187 @@ const validateParams = (params) => {
   }
 };
 
-// Функция для генерации тестовых данных
-const generateTestData = (position) => {
-  const today = new Date();
-  const month = today.getMonth() + 1;
-  const year = today.getFullYear();
-  const date = `${year}-${month.toString().padStart(2, '0')}`;
+// Генерация случайной даты в текущем месяце
+const getRandomDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const day = Math.floor(Math.random() * now.getDate()) + 1;
+  return new Date(year, month, day).toISOString().split('T')[0];
+};
 
-  // Генерируем случайную зарплату в диапазоне
-  const getRandomSalary = (min, max) => {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  };
+// Генерация тестовых данных
+export const generateTestData = async (position) => {
+  console.log('Generating test data for position:', position);
 
-  // Генерируем больше данных для более реалистичной статистики
-  const newVacancies = Array.from({ length: 20 }, () => ({
+  // Генерируем 1500 вакансий (лимит HH.ru в день)
+  const vacancies = Array.from({ length: 1500 }, (_, i) => ({
     position,
-    date,
-    salary: getRandomSalary(80000, 300000)
+    title: `Вакансия ${position} #${i + 1}`,
+    company: `Компания ${Math.floor(Math.random() * 100) + 1}`,
+    salary: Math.floor(Math.random() * 200000) + 50000,
+    date: getRandomDate(),
+    url: `https://hh.ru/vacancy/${Math.floor(Math.random() * 1000000)}`,
+    description: 'Описание вакансии...',
+    requirements: 'Требования к кандидату...',
+    responsibilities: 'Обязанности...',
+    location: 'Москва',
+    experience: ['Нет опыта', 'От 1 до 3 лет', 'От 3 до 6 лет', 'Более 6 лет'][Math.floor(Math.random() * 4)],
+    employment: ['Полная занятость', 'Частичная занятость', 'Проектная работа'][Math.floor(Math.random() * 3)],
+    schedule: ['Полный день', 'Удаленная работа', 'Гибкий график'][Math.floor(Math.random() * 3)]
   }));
 
-  const newResumes = Array.from({ length: 20 }, () => ({
+  // Генерируем 1500 резюме
+  const resumes = Array.from({ length: 1500 }, (_, i) => ({
     position,
-    date,
-    salary: getRandomSalary(70000, 280000)
+    title: `Резюме ${position} #${i + 1}`,
+    salary: Math.floor(Math.random() * 300000) + 50000,
+    date: getRandomDate(),
+    url: `https://hh.ru/resume/${Math.floor(Math.random() * 1000000)}`,
+    experience: Math.floor(Math.random() * 10),
+    skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Java', 'C++'].slice(0, Math.floor(Math.random() * 6) + 1),
+    education: ['Высшее', 'Неоконченное высшее', 'Среднее специальное'][Math.floor(Math.random() * 3)],
+    location: 'Москва',
+    employment: ['Полная занятость', 'Частичная занятость', 'Проектная работа'][Math.floor(Math.random() * 3)],
+    schedule: ['Полный день', 'Удаленная работа', 'Гибкий график'][Math.floor(Math.random() * 3)]
   }));
 
   console.log('Generated test data:', {
-    position,
-    date,
-    vacanciesCount: newVacancies.length,
-    resumesCount: newResumes.length,
-    sampleVacancy: newVacancies[0],
-    sampleResume: newResumes[0]
+    vacancies: vacancies.length,
+    resumes: resumes.length,
+    sampleVacancy: vacancies[0],
+    sampleResume: resumes[0]
   });
 
-  return { newVacancies, newResumes };
+  // Сохраняем данные в базу
+  const positionId = await getOrCreatePosition(position);
+  const vacancyResults = await addVacancies(vacancies);
+  const resumeResults = await addResumes(resumes);
+
+  return {
+    positionId,
+    vacancies: vacancyResults,
+    resumes: resumeResults
+  };
 };
 
-// Функции для работы с API
+// Поиск позиций
 export const searchPositions = async (query) => {
-  try {
-    if (!query || typeof query !== 'string') {
-      throw new Error('Invalid search query');
-    }
+  console.log('Searching positions with query:', query);
+  
+  // Список популярных позиций
+  const positions = [
+    'iOS разработчик',
+    'iOS Developer',
+    'Swift разработчик',
+    'Swift Developer',
+    'iOS инженер',
+    'iOS Engineer',
+    'Мобильный разработчик iOS',
+    'Mobile iOS Developer',
+    'Разработчик приложений iOS',
+    'iOS Application Developer'
+  ];
 
-    console.log('Searching positions with query:', query);
-    
-    // Временные тестовые данные для поиска
-    const mockPositions = [
-      'ios разработчик',
-      'ios developer',
-      'ios инженер',
-      'ios engineer',
-      'ios программист',
-      'ios software engineer',
-      'ios архитектор',
-      'ios team lead',
-      'ios tech lead',
-      'ios senior developer'
-    ];
+  // Фильтруем позиции по запросу
+  const filteredPositions = positions.filter(position => 
+    position.toLowerCase().includes(query.toLowerCase())
+  );
 
-    // Фильтруем позиции по запросу
-    const filteredPositions = mockPositions.filter(position => 
-      position.toLowerCase().includes(query.toLowerCase())
-    );
-
-    console.log('Found positions:', filteredPositions);
-    return filteredPositions;
-  } catch (error) {
-    console.error('Error in searchPositions:', error);
-    throw error;
-  }
+  console.log('Found positions:', filteredPositions);
+  return filteredPositions;
 };
 
-export const getSalaryData = async (params) => {
-  try {
-    validateParams(params);
-    console.log('Getting salary data with params:', params);
+// Получение данных о зарплатах
+export const getSalaryData = async (position, startDate, endDate) => {
+  console.log('Getting salary data for position:', position, 'from', startDate, 'to', endDate);
 
-    // Генерируем и добавляем новые данные
-    if (params.position) {
-      const { newVacancies, newResumes } = generateTestData(params.position);
-      console.log('Adding new data to database:', {
-        position: params.position,
-        vacanciesCount: newVacancies.length,
-        resumesCount: newResumes.length
-      });
+  const vacancies = await getVacancies(position, startDate, endDate);
+  const resumes = await getResumes(position, startDate, endDate);
 
-      // Отправляем данные на сервер
-      const response = await fetch(API_URLS.ADD_DATA, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          position: params.position,
-          vacancies: newVacancies,
-          resumes: newResumes
-        })
-      });
+  console.log('Retrieved data:', {
+    vacancies: vacancies.length,
+    resumes: resumes.length
+  });
 
-      if (!response.ok) {
-        throw new Error('Failed to add data');
-      }
+  // Расчет статистики
+  const calculateStats = (items) => {
+    if (items.length === 0) return null;
 
-      console.log('Data added successfully');
-    }
+    const salaries = items.map(item => item.salary).sort((a, b) => a - b);
+    const len = salaries.length;
 
-    // Получаем данные из базы
-    const response = await fetch(`${API_URLS.GET_SALARY_DATA}?${new URLSearchParams(params)}`);
-    if (!response.ok) {
-      throw new Error('Failed to get salary data');
-    }
-
-    const data = await response.json();
-    console.log('Data from database:', data);
-
-    const step = params.step || 10000;
-    const ranges = generateRanges(step);
-    
-    const vacancyPercentages = countInRanges(data.vacancies, ranges);
-    const resumePercentages = countInRanges(data.resumes, ranges);
-    const vacancyPercentiles = calculateRangePercentiles(data.vacancies, ranges);
-    const resumePercentiles = calculateRangePercentiles(data.resumes, ranges);
-
-    const result = {
-      ranges: ranges.map(r => r.label),
-      vacancies: vacancyPercentages,
-      resumes: resumePercentages,
-      percentiles: {
-        vacancies: vacancyPercentiles,
-        resumes: resumePercentiles
-      }
+    return {
+      min: salaries[0],
+      max: salaries[len - 1],
+      median: len % 2 === 0 
+        ? (salaries[len/2 - 1] + salaries[len/2]) / 2 
+        : salaries[Math.floor(len/2)],
+      p25: salaries[Math.floor(len * 0.25)],
+      p75: salaries[Math.floor(len * 0.75)],
+      count: len
     };
+  };
 
-    console.log('Salary data result:', result);
-    return result;
-  } catch (error) {
-    console.error('Error in getSalaryData:', error);
-    throw error;
-  }
+  return {
+    vacancies: calculateStats(vacancies),
+    resumes: calculateStats(resumes)
+  };
 };
 
-export const getGradeStats = async (params) => {
-  try {
-    validateParams(params);
-    console.log('Getting grade stats with params:', params);
+// Получение статистики по грейдам
+export const getGradeStats = async (position) => {
+  console.log('Getting grade stats for position:', position);
 
-    const response = await fetch(`${API_URLS.GET_GRADE_STATS}?${new URLSearchParams(params)}`);
-    if (!response.ok) {
-      throw new Error('Failed to get grade stats');
-    }
+  const vacancies = await getVacancies(position);
+  const resumes = await getResumes(position);
 
-    const data = await response.json();
-    console.log('Grade stats result:', data);
-    return data;
-  } catch (error) {
-    console.error('Error in getGradeStats:', error);
-    throw error;
-  }
+  // Определение грейда по опыту
+  const getGrade = (experience) => {
+    if (experience < 1) return 'Junior';
+    if (experience < 3) return 'Middle';
+    if (experience < 6) return 'Senior';
+    return 'Lead';
+  };
+
+  // Группировка по грейдам
+  const groupByGrade = (items, getExperience) => {
+    const grades = {};
+    items.forEach(item => {
+      const grade = getGrade(getExperience(item));
+      if (!grades[grade]) {
+        grades[grade] = {
+          count: 0,
+          salaries: []
+        };
+      }
+      grades[grade].count++;
+      grades[grade].salaries.push(item.salary);
+    });
+
+    // Расчет статистики для каждого грейда
+    Object.keys(grades).forEach(grade => {
+      const salaries = grades[grade].salaries.sort((a, b) => a - b);
+      const len = salaries.length;
+      grades[grade] = {
+        count: len,
+        min: salaries[0],
+        max: salaries[len - 1],
+        median: len % 2 === 0 
+          ? (salaries[len/2 - 1] + salaries[len/2]) / 2 
+          : salaries[Math.floor(len/2)],
+        p25: salaries[Math.floor(len * 0.25)],
+        p75: salaries[Math.floor(len * 0.75)]
+      };
+    });
+
+    return grades;
+  };
+
+  return {
+    vacancies: groupByGrade(vacancies, v => v.experience),
+    resumes: groupByGrade(resumes, r => r.experience)
+  };
 };
 
 export const updateGradeRange = async (grade, minSalary, maxSalary) => {

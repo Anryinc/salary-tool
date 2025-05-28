@@ -4,156 +4,194 @@ const DB_NAME = 'salary_tool_db';
 const DB_VERSION = 1;
 
 // Инициализация базы данных
-export const initializeDatabase = async () => {
+export const initDB = async () => {
   const db = await openDB(DB_NAME, DB_VERSION, {
     upgrade(db) {
-      // Создаем таблицу для должностей
+      // Создаем хранилище для позиций
       if (!db.objectStoreNames.contains('positions')) {
         db.createObjectStore('positions', { keyPath: 'id', autoIncrement: true });
       }
 
-      // Создаем таблицу для вакансий
+      // Создаем хранилище для вакансий
       if (!db.objectStoreNames.contains('vacancies')) {
         const vacancyStore = db.createObjectStore('vacancies', { keyPath: 'id', autoIncrement: true });
-        vacancyStore.createIndex('position_id', 'position_id');
+        vacancyStore.createIndex('position', 'position');
         vacancyStore.createIndex('date', 'date');
+        vacancyStore.createIndex('url', 'url', { unique: true });
+        vacancyStore.createIndex('month', 'month');
       }
 
-      // Создаем таблицу для резюме
+      // Создаем хранилище для резюме
       if (!db.objectStoreNames.contains('resumes')) {
         const resumeStore = db.createObjectStore('resumes', { keyPath: 'id', autoIncrement: true });
-        resumeStore.createIndex('position_id', 'position_id');
+        resumeStore.createIndex('position', 'position');
         resumeStore.createIndex('date', 'date');
+        resumeStore.createIndex('url', 'url', { unique: true });
+        resumeStore.createIndex('month', 'month');
       }
     },
   });
-
   return db;
 };
 
-// Получение или создание должности
-export const getOrCreatePosition = async (db, positionName) => {
+// Получение или создание позиции
+export const getOrCreatePosition = async (position) => {
+  const db = await initDB();
   const tx = db.transaction('positions', 'readwrite');
   const store = tx.objectStore('positions');
 
-  // Ищем должность по имени
-  const positions = await store.getAll();
-  const existingPosition = positions.find(p => p.name === positionName);
+  // Проверяем существование позиции
+  const existingPositions = await store.getAll();
+  const existingPosition = existingPositions.find(p => p.name === position);
 
   if (existingPosition) {
     return existingPosition.id;
   }
 
-  // Если должность не найдена, создаем новую
-  const newPosition = { name: positionName };
-  return store.add(newPosition);
+  // Создаем новую позицию
+  const id = await store.add({ name: position });
+  await tx.done;
+  return id;
 };
 
-// Добавление вакансий
-export const addVacancies = async (db, positionId, vacancies) => {
+// Добавление вакансий с проверкой дубликатов
+export const addVacancies = async (vacancies) => {
+  const db = await initDB();
   const tx = db.transaction('vacancies', 'readwrite');
   const store = tx.objectStore('vacancies');
+  const urlIndex = store.index('url');
+  const monthIndex = store.index('month');
 
-  const promises = vacancies.map(vacancy => 
-    store.add({
-      position_id: positionId,
-      date: vacancy.date,
-      salary: vacancy.salary
-    })
-  );
+  const addedCount = { total: 0, new: 0, duplicates: 0 };
 
-  await Promise.all(promises);
+  for (const vacancy of vacancies) {
+    // Добавляем месяц для проверки дубликатов
+    const month = vacancy.date.substring(0, 7);
+    vacancy.month = month;
+
+    try {
+      // Проверяем существование вакансии по URL
+      const existingVacancy = await urlIndex.get(vacancy.url);
+      
+      if (existingVacancy) {
+        // Если вакансия существует в том же месяце, пропускаем
+        if (existingVacancy.month === month) {
+          addedCount.duplicates++;
+          continue;
+        }
+      }
+
+      // Добавляем новую вакансию
+      await store.add(vacancy);
+      addedCount.new++;
+    } catch (error) {
+      if (error.name === 'ConstraintError') {
+        addedCount.duplicates++;
+      } else {
+        throw error;
+      }
+    }
+    addedCount.total++;
+  }
+
+  await tx.done;
+  console.log('Added vacancies:', addedCount);
+  return addedCount;
 };
 
-// Добавление резюме
-export const addResumes = async (db, positionId, resumes) => {
+// Добавление резюме с проверкой дубликатов
+export const addResumes = async (resumes) => {
+  const db = await initDB();
   const tx = db.transaction('resumes', 'readwrite');
   const store = tx.objectStore('resumes');
+  const urlIndex = store.index('url');
+  const monthIndex = store.index('month');
 
-  const promises = resumes.map(resume => 
-    store.add({
-      position_id: positionId,
-      date: resume.date,
-      salary: resume.salary
-    })
-  );
+  const addedCount = { total: 0, new: 0, duplicates: 0 };
 
-  await Promise.all(promises);
+  for (const resume of resumes) {
+    // Добавляем месяц для проверки дубликатов
+    const month = resume.date.substring(0, 7);
+    resume.month = month;
+
+    try {
+      // Проверяем существование резюме по URL
+      const existingResume = await urlIndex.get(resume.url);
+      
+      if (existingResume) {
+        // Если резюме существует в том же месяце, пропускаем
+        if (existingResume.month === month) {
+          addedCount.duplicates++;
+          continue;
+        }
+      }
+
+      // Добавляем новое резюме
+      await store.add(resume);
+      addedCount.new++;
+    } catch (error) {
+      if (error.name === 'ConstraintError') {
+        addedCount.duplicates++;
+      } else {
+        throw error;
+      }
+    }
+    addedCount.total++;
+  }
+
+  await tx.done;
+  console.log('Added resumes:', addedCount);
+  return addedCount;
 };
 
-// Получение всех должностей
-export const getAllPositions = async (db) => {
+// Получение всех позиций
+export const getAllPositions = async () => {
+  const db = await initDB();
   const tx = db.transaction('positions', 'readonly');
   const store = tx.objectStore('positions');
-  return store.getAll();
+  const positions = await store.getAll();
+  await tx.done;
+  return positions;
 };
 
-// Получение вакансий с фильтрацией
-export const getVacancies = async (db, params) => {
-  let positionId;
-  if (params.position) {
-    positionId = await getOrCreatePosition(db, params.position);
-  }
-
+// Получение вакансий по позиции и датам
+export const getVacancies = async (position, startDate, endDate) => {
+  const db = await initDB();
   const tx = db.transaction('vacancies', 'readonly');
   const store = tx.objectStore('vacancies');
-  const positionIndex = store.index('position_id');
+  const positionIndex = store.index('position');
+  const dateIndex = store.index('date');
 
-  let vacancies;
-  if (positionId) {
-    vacancies = await positionIndex.getAll(positionId);
-  } else {
-    vacancies = await store.getAll();
+  let vacancies = await positionIndex.getAll(position);
+  
+  if (startDate) {
+    vacancies = vacancies.filter(v => v.date >= startDate);
+  }
+  if (endDate) {
+    vacancies = vacancies.filter(v => v.date <= endDate);
   }
 
-  // Фильтрация по дате
-  if (params.start_date || params.end_date) {
-    vacancies = vacancies.filter(vacancy => {
-      const date = new Date(vacancy.date);
-      if (params.start_date && date < new Date(params.start_date)) {
-        return false;
-      }
-      if (params.end_date && date > new Date(params.end_date)) {
-        return false;
-      }
-      return true;
-    });
-  }
-
+  await tx.done;
   return vacancies;
 };
 
-// Получение резюме с фильтрацией
-export const getResumes = async (db, params) => {
-  let positionId;
-  if (params.position) {
-    positionId = await getOrCreatePosition(db, params.position);
-  }
-
+// Получение резюме по позиции и датам
+export const getResumes = async (position, startDate, endDate) => {
+  const db = await initDB();
   const tx = db.transaction('resumes', 'readonly');
   const store = tx.objectStore('resumes');
-  const positionIndex = store.index('position_id');
+  const positionIndex = store.index('position');
+  const dateIndex = store.index('date');
 
-  let resumes;
-  if (positionId) {
-    resumes = await positionIndex.getAll(positionId);
-  } else {
-    resumes = await store.getAll();
+  let resumes = await positionIndex.getAll(position);
+  
+  if (startDate) {
+    resumes = resumes.filter(r => r.date >= startDate);
+  }
+  if (endDate) {
+    resumes = resumes.filter(r => r.date <= endDate);
   }
 
-  // Фильтрация по дате
-  if (params.start_date || params.end_date) {
-    resumes = resumes.filter(resume => {
-      const date = new Date(resume.date);
-      if (params.start_date && date < new Date(params.start_date)) {
-        return false;
-      }
-      if (params.end_date && date > new Date(params.end_date)) {
-        return false;
-      }
-      return true;
-    });
-  }
-
+  await tx.done;
   return resumes;
 }; 
