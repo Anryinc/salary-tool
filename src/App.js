@@ -38,7 +38,8 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import { searchPositions, getSalaryData, getGradeStats, updateGradeRange, deleteDatabase, generateTestData } from './api';
+import { searchPositions, getSalaryData, getGradeStats, updateGradeRange, generateTestData } from './api';
+import { deleteDatabase } from './db';
 import EditIcon from '@mui/icons-material/Edit';
 import SalaryDistribution from './components/SalaryDistribution';
 import './App.css';
