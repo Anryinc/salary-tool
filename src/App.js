@@ -24,6 +24,8 @@ import {
   FormControl,
   InputLabel,
   LinearProgress,
+  Alert,
+  Snackbar,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -438,6 +440,21 @@ function App() {
           <Typography variant="h4" component="h1" gutterBottom align="center">
             Анализ зарплат
           </Typography>
+
+          <Snackbar 
+            open={!!notification} 
+            autoHideDuration={6000} 
+            onClose={() => setNotification(null)}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          >
+            <Alert 
+              onClose={() => setNotification(null)} 
+              severity={notification?.type || 'info'} 
+              sx={{ width: '100%' }}
+            >
+              {notification?.message}
+            </Alert>
+          </Snackbar>
 
           <Grid container spacing={3} sx={{ mb: 4 }}>
             <Grid item xs={12} md={4}>
