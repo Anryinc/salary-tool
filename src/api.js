@@ -181,4 +181,35 @@ export const getGradeStats = async (position) => {
     vacancies: groupByGrade(vacancies, v => v.experience),
     resumes: groupByGrade(resumes, r => r.experience)
   };
+};
+
+// Обновление диапазонов зарплат для грейдов
+export const updateGradeRange = async (grade, minSalary, maxSalary) => {
+  try {
+    if (!grade) {
+      throw new Error('Invalid grade');
+    }
+    if (typeof minSalary !== 'number' || minSalary < 0) {
+      throw new Error('Invalid min salary');
+    }
+    if (typeof maxSalary !== 'number' || maxSalary <= minSalary) {
+      throw new Error('Invalid max salary');
+    }
+
+    console.log('Updating grade range:', { grade, minSalary, maxSalary });
+
+    // В реальном приложении здесь будет обновление диапазонов в базе данных
+    // Сейчас просто возвращаем обновленные данные
+    return {
+      Intern: { min: 0, max: 60000 },
+      Junior: { min: 60000, max: 150000 },
+      Middle: { min: 150000, max: 260000 },
+      Senior: { min: 260000, max: 350000 },
+      Lead: { min: 350000, max: 470000 },
+      [grade]: { min: minSalary, max: maxSalary }
+    };
+  } catch (error) {
+    console.error('Error in updateGradeRange:', error);
+    throw error;
+  }
 }; 
