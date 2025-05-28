@@ -282,20 +282,19 @@ function App() {
       console.log('Data loading result:', result);
       setLoadingProgress(80);
 
+      if (!result.vacancies.length || !result.resumes.length) {
+        throw new Error('Не удалось загрузить данные');
+      }
+
       // Обновляем данные
       setNotification({
         message: 'Обновление статистики...',
         type: 'info'
       });
-      setSalaryData({
-        vacancies: result.vacancies,
-        resumes: result.resumes,
-        percentiles: {
-          P25: 0,
-          P50: 0,
-          P75: 0
-        }
-      });
+
+      // Получаем данные о зарплатах
+      const salaryData = await getSalaryData({ position: selectedPosition });
+      setSalaryData(salaryData);
       setLoadingProgress(90);
 
       // Обновляем статистику по грейдам
@@ -305,24 +304,21 @@ function App() {
 
       // Показываем уведомление об успешной загрузке
       setNotification({
-        message: 'Данные успешно загружены',
+        message: `Данные успешно загружены (${result.vacancies.length} вакансий, ${result.resumes.length} резюме)`,
         type: 'success'
       });
     } catch (error) {
       console.error('Error loading data:', error);
       setNotification({
-        message: 'Ошибка при загрузке данных. Пожалуйста, попробуйте еще раз.',
+        message: error.message || 'Ошибка при загрузке данных. Пожалуйста, попробуйте еще раз.',
         type: 'error'
       });
       // Устанавливаем пустые данные в случае ошибки
       setSalaryData({
+        ranges: [],
         vacancies: [],
         resumes: [],
-        percentiles: {
-          P25: 0,
-          P50: 0,
-          P75: 0
-        }
+        percentiles: { vacancies: [], resumes: [] }
       });
       setGradeStats({
         vacancies: [],

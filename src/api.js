@@ -60,8 +60,8 @@ export const generateTestData = async (position) => {
     const positionId = await getOrCreatePosition(position);
     console.log('Position ID:', positionId);
 
-    // Разбиваем данные на чанки по 50 записей
-    const CHUNK_SIZE = 50;
+    // Разбиваем данные на чанки по 25 записей
+    const CHUNK_SIZE = 25;
     const vacancyChunks = [];
     const resumeChunks = [];
 
@@ -76,15 +76,28 @@ export const generateTestData = async (position) => {
     // Функция для добавления задержки
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+    // Функция для повторных попыток
+    const retryOperation = async (operation, maxRetries = 3) => {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          return await operation();
+        } catch (error) {
+          if (i === maxRetries - 1) throw error;
+          console.log(`Retry ${i + 1}/${maxRetries} after error:`, error);
+          await delay(500 * (i + 1)); // Увеличиваем задержку с каждой попыткой
+        }
+      }
+    };
+
     console.log('Adding vacancies to IndexedDB in chunks...');
     let vacancyResults = [];
     for (let i = 0; i < vacancyChunks.length; i++) {
       try {
-        const results = await addVacancies(vacancyChunks[i]);
+        const results = await retryOperation(() => addVacancies(vacancyChunks[i]));
         vacancyResults = vacancyResults.concat(results);
         console.log(`Added chunk ${i + 1}/${vacancyChunks.length} of vacancies`);
         // Добавляем небольшую задержку между чанками
-        await delay(100);
+        await delay(200);
       } catch (error) {
         console.error(`Error adding vacancy chunk ${i + 1}:`, error);
         // Продолжаем с следующим чанком
@@ -93,23 +106,28 @@ export const generateTestData = async (position) => {
     console.log('Vacancies added:', vacancyResults.length);
 
     // Добавляем задержку между вакансиями и резюме
-    await delay(500);
+    await delay(1000);
 
     console.log('Adding resumes to IndexedDB in chunks...');
     let resumeResults = [];
     for (let i = 0; i < resumeChunks.length; i++) {
       try {
-        const results = await addResumes(resumeChunks[i]);
+        const results = await retryOperation(() => addResumes(resumeChunks[i]));
         resumeResults = resumeResults.concat(results);
         console.log(`Added chunk ${i + 1}/${resumeChunks.length} of resumes`);
         // Добавляем небольшую задержку между чанками
-        await delay(100);
+        await delay(200);
       } catch (error) {
         console.error(`Error adding resume chunk ${i + 1}:`, error);
         // Продолжаем с следующим чанком
       }
     }
     console.log('Resumes added:', resumeResults.length);
+
+    // Проверяем, что у нас есть достаточно данных для отображения
+    if (vacancyResults.length < 10 || resumeResults.length < 10) {
+      throw new Error('Недостаточно данных для отображения статистики');
+    }
 
     return {
       positionId,
