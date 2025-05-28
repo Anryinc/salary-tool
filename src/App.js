@@ -44,6 +44,7 @@ import { searchPositions, getSalaryData, getGradeStats, updateGradeRange, genera
 import { deleteDatabase } from './db';
 import EditIcon from '@mui/icons-material/Edit';
 import SalaryDistribution from './components/SalaryDistribution';
+import DataLists from './components/DataLists';
 import './App.css';
 
 ChartJS.register(
@@ -88,6 +89,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [notification, setNotification] = useState(null);
+  const [loadedData, setLoadedData] = useState({ vacancies: [], resumes: [] });
 
   const fetchData = useCallback(() => {
     try {
@@ -286,6 +288,12 @@ function App() {
         throw new Error('Не удалось загрузить данные');
       }
 
+      // Сохраняем загруженные данные для отображения в списках
+      setLoadedData({
+        vacancies: result.vacancies,
+        resumes: result.resumes
+      });
+
       // Обновляем данные
       setNotification({
         message: 'Обновление статистики...',
@@ -321,6 +329,10 @@ function App() {
         percentiles: { vacancies: [], resumes: [] }
       });
       setGradeStats({
+        vacancies: [],
+        resumes: []
+      });
+      setLoadedData({
         vacancies: [],
         resumes: []
       });
@@ -672,6 +684,11 @@ function App() {
           salaryData={salaryData}
           gradeRanges={gradeRanges}
           onGradeRangeUpdate={handleGradeRangeUpdate}
+        />
+
+        <DataLists 
+          vacancies={loadedData.vacancies}
+          resumes={loadedData.resumes}
         />
       </Container>
     </LocalizationProvider>
