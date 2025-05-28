@@ -472,38 +472,38 @@ function App() {
               </TableHead>
               <TableBody>
                 {GRADES.map((grade) => {
-                  const vacancyStat = gradeStats.vacancies.find(v => v.experience === grade);
+                  const vacancyStat = gradeStats.vacancies.find(v => v.grade === grade);
                   const resumeStat = gradeStats.resumes.find(r => r.grade === grade);
                   return (
                     <TableRow key={grade}>
                       <TableCell>{grade}</TableCell>
                       <TableCell>
-                        {resumeStat?.salaryRange && (
-                          `${(resumeStat.salaryRange.min || 0).toLocaleString()} - ${(resumeStat.salaryRange.max || 0).toLocaleString()} ₽`
+                        {resumeStat && (
+                          `${(resumeStat.min || 0).toLocaleString()} - ${(resumeStat.max || 0).toLocaleString()} ₽`
                         )}
                       </TableCell>
                       <TableCell>
-                        {resumeStat?.percentiles && (
+                        {resumeStat && (
                           <Box>
                             <Typography variant="body2">
-                              Грейд 1: {(resumeStat.percentiles.grade1 || 0).toLocaleString()} ₽
+                              P25: {(resumeStat.p25 || 0).toLocaleString()} ₽
                             </Typography>
                             <Typography variant="body2">
-                              Грейд 2: {(resumeStat.percentiles.grade2 || 0).toLocaleString()} ₽
+                              P50: {(resumeStat.median || 0).toLocaleString()} ₽
                             </Typography>
                             <Typography variant="body2">
-                              Грейд 3: {(resumeStat.percentiles.grade3 || 0).toLocaleString()} ₽
+                              P75: {(resumeStat.p75 || 0).toLocaleString()} ₽
                             </Typography>
                           </Box>
                         )}
                       </TableCell>
                       <TableCell align="right">{vacancyStat?.count || 0}</TableCell>
                       <TableCell align="right">
-                        {vacancyStat?.avg_salary ? Math.round(vacancyStat.avg_salary || 0).toLocaleString() : '-'} ₽
+                        {vacancyStat?.avg_salary ? Math.round(vacancyStat.avg_salary).toLocaleString() : '-'} ₽
                       </TableCell>
                       <TableCell align="right">{resumeStat?.count || 0}</TableCell>
                       <TableCell align="right">
-                        {resumeStat?.avg_salary ? Math.round(resumeStat.avg_salary || 0).toLocaleString() : '-'} ₽
+                        {resumeStat?.avg_salary ? Math.round(resumeStat.avg_salary).toLocaleString() : '-'} ₽
                       </TableCell>
                       <TableCell align="right">
                         <IconButton onClick={() => handleEditClick(grade)}>

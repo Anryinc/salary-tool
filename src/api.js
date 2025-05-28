@@ -151,58 +151,90 @@ export const getSalaryData = async (params) => {
 };
 
 // Получение статистики по грейдам
-export const getGradeStats = async (position) => {
+export const getGradeStats = async (params) => {
+  const { position } = params;
+  
+  if (!position) {
+    console.warn('No position provided for getGradeStats');
+    return {
+      vacancies: [],
+      resumes: []
+    };
+  }
+
   console.log('Getting grade stats for position:', position);
 
-  const vacancies = await getVacancies(position);
-  const resumes = await getResumes(position);
+  try {
+    const vacancies = await getVacancies(position);
+    const resumes = await getResumes(position);
 
-  // Определение грейда по опыту
-  const getGrade = (experience) => {
-    if (experience < 1) return 'Junior';
-    if (experience < 3) return 'Middle';
-    if (experience < 6) return 'Senior';
-    return 'Lead';
-  };
-
-  // Группировка по грейдам
-  const groupByGrade = (items, getExperience) => {
-    const grades = {};
-    items.forEach(item => {
-      const grade = getGrade(getExperience(item));
-      if (!grades[grade]) {
-        grades[grade] = {
-          count: 0,
-          salaries: []
-        };
+    // Определение грейда по опыту
+    const getGrade = (experience) => {
+      if (typeof experience === 'string') {
+        if (experience.includes('Нет опыта')) return 'Intern';
+        if (experience.includes('От 1 до 3')) return 'Junior';
+        if (experience.includes('От 3 до 6')) return 'Middle';
+        if (experience.includes('Более 6')) return 'Senior';
+        return 'Lead';
       }
-      grades[grade].count++;
-      grades[grade].salaries.push(item.salary);
-    });
+      if (typeof experience === 'number') {
+        if (experience < 1) return 'Intern';
+        if (experience < 3) return 'Junior';
+        if (experience < 6) return 'Middle';
+        if (experience < 10) return 'Senior';
+        return 'Lead';
+      }
+      return 'Unknown';
+    };
 
-    // Расчет статистики для каждого грейда
-    Object.keys(grades).forEach(grade => {
-      const salaries = grades[grade].salaries.sort((a, b) => a - b);
-      const len = salaries.length;
-      grades[grade] = {
-        count: len,
-        min: salaries[0],
-        max: salaries[len - 1],
-        median: len % 2 === 0 
-          ? (salaries[len/2 - 1] + salaries[len/2]) / 2 
-          : salaries[Math.floor(len/2)],
-        p25: salaries[Math.floor(len * 0.25)],
-        p75: salaries[Math.floor(len * 0.75)]
-      };
-    });
+    // Группировка по грейдам
+    const groupByGrade = (items, getExperience) => {
+      const grades = {};
+      items.forEach(item => {
+        const grade = getGrade(getExperience(item));
+        if (!grades[grade]) {
+          grades[grade] = {
+            grade,
+            count: 0,
+            salaries: []
+          };
+        }
+        grades[grade].count++;
+        grades[grade].salaries.push(item.salary);
+      });
 
-    return grades;
-  };
+      // Расчет статистики для каждого грейда
+      Object.keys(grades).forEach(grade => {
+        const salaries = grades[grade].salaries.sort((a, b) => a - b);
+        const len = salaries.length;
+        grades[grade] = {
+          grade,
+          count: len,
+          min: salaries[0],
+          max: salaries[len - 1],
+          median: len % 2 === 0 
+            ? (salaries[len/2 - 1] + salaries[len/2]) / 2 
+            : salaries[Math.floor(len/2)],
+          p25: salaries[Math.floor(len * 0.25)],
+          p75: salaries[Math.floor(len * 0.75)],
+          avg_salary: salaries.reduce((a, b) => a + b, 0) / len
+        };
+      });
 
-  return {
-    vacancies: groupByGrade(vacancies, v => v.experience),
-    resumes: groupByGrade(resumes, r => r.experience)
-  };
+      return Object.values(grades);
+    };
+
+    return {
+      vacancies: groupByGrade(vacancies, v => v.experience),
+      resumes: groupByGrade(resumes, r => r.experience)
+    };
+  } catch (error) {
+    console.error('Error in getGradeStats:', error);
+    return {
+      vacancies: [],
+      resumes: []
+    };
+  }
 };
 
 // Обновление диапазонов зарплат для грейдов
