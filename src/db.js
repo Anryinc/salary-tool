@@ -178,44 +178,64 @@ export const getAllPositions = async () => {
 
 // Получение вакансий по позиции и датам
 export const getVacancies = async (position, startDate, endDate) => {
+  if (!position) {
+    console.warn('No position provided for getVacancies');
+    return [];
+  }
+
   const db = await initDB();
   const tx = db.transaction('vacancies', 'readonly');
   const store = tx.objectStore('vacancies');
   const positionIndex = store.index('position');
 
-  let vacancies = await positionIndex.getAll(position);
-  
-  if (startDate) {
-    const startMonth = startDate.substring(0, 7);
-    vacancies = vacancies.filter(v => v.month >= startMonth);
-  }
-  if (endDate) {
-    const endMonth = endDate.substring(0, 7);
-    vacancies = vacancies.filter(v => v.month <= endMonth);
-  }
+  try {
+    let vacancies = await positionIndex.getAll(position);
+    
+    if (startDate) {
+      const startMonth = startDate.substring(0, 7);
+      vacancies = vacancies.filter(v => v.month >= startMonth);
+    }
+    if (endDate) {
+      const endMonth = endDate.substring(0, 7);
+      vacancies = vacancies.filter(v => v.month <= endMonth);
+    }
 
-  await tx.done;
-  return vacancies;
+    await tx.done;
+    return vacancies;
+  } catch (error) {
+    console.error('Error getting vacancies:', error);
+    return [];
+  }
 };
 
 // Получение резюме по позиции и датам
 export const getResumes = async (position, startDate, endDate) => {
+  if (!position) {
+    console.warn('No position provided for getResumes');
+    return [];
+  }
+
   const db = await initDB();
   const tx = db.transaction('resumes', 'readonly');
   const store = tx.objectStore('resumes');
   const positionIndex = store.index('position');
 
-  let resumes = await positionIndex.getAll(position);
-  
-  if (startDate) {
-    const startMonth = startDate.substring(0, 7);
-    resumes = resumes.filter(r => r.month >= startMonth);
-  }
-  if (endDate) {
-    const endMonth = endDate.substring(0, 7);
-    resumes = resumes.filter(r => r.month <= endMonth);
-  }
+  try {
+    let resumes = await positionIndex.getAll(position);
+    
+    if (startDate) {
+      const startMonth = startDate.substring(0, 7);
+      resumes = resumes.filter(r => r.month >= startMonth);
+    }
+    if (endDate) {
+      const endMonth = endDate.substring(0, 7);
+      resumes = resumes.filter(r => r.month <= endMonth);
+    }
 
-  await tx.done;
-  return resumes;
+    await tx.done;
+    return resumes;
+  } catch (error) {
+    console.error('Error getting resumes:', error);
+    return [];
+  }
 }; 

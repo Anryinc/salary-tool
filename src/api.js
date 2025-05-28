@@ -92,40 +92,62 @@ export const searchPositions = async (query) => {
 };
 
 // Получение данных о зарплатах
-export const getSalaryData = async (position, startDate, endDate) => {
-  console.log('Getting salary data for position:', position, 'from', startDate, 'to', endDate);
+export const getSalaryData = async (params) => {
+  const { position, start_date, end_date } = params;
+  
+  if (!position) {
+    console.warn('No position provided for getSalaryData');
+    return {
+      ranges: [],
+      vacancies: [],
+      resumes: [],
+      percentiles: { vacancies: [], resumes: [] }
+    };
+  }
 
-  const vacancies = await getVacancies(position, startDate, endDate);
-  const resumes = await getResumes(position, startDate, endDate);
+  console.log('Getting salary data for position:', position, 'from', start_date, 'to', end_date);
 
-  console.log('Retrieved data:', {
-    vacancies: vacancies.length,
-    resumes: resumes.length
-  });
+  try {
+    const vacancies = await getVacancies(position, start_date, end_date);
+    const resumes = await getResumes(position, start_date, end_date);
 
-  // Расчет статистики
-  const calculateStats = (items) => {
-    if (items.length === 0) return null;
+    console.log('Retrieved data:', {
+      vacancies: vacancies.length,
+      resumes: resumes.length
+    });
 
-    const salaries = items.map(item => item.salary).sort((a, b) => a - b);
-    const len = salaries.length;
+    // Расчет статистики
+    const calculateStats = (items) => {
+      if (items.length === 0) return null;
+
+      const salaries = items.map(item => item.salary).sort((a, b) => a - b);
+      const len = salaries.length;
+
+      return {
+        min: salaries[0],
+        max: salaries[len - 1],
+        median: len % 2 === 0 
+          ? (salaries[len/2 - 1] + salaries[len/2]) / 2 
+          : salaries[Math.floor(len/2)],
+        p25: salaries[Math.floor(len * 0.25)],
+        p75: salaries[Math.floor(len * 0.75)],
+        count: len
+      };
+    };
 
     return {
-      min: salaries[0],
-      max: salaries[len - 1],
-      median: len % 2 === 0 
-        ? (salaries[len/2 - 1] + salaries[len/2]) / 2 
-        : salaries[Math.floor(len/2)],
-      p25: salaries[Math.floor(len * 0.25)],
-      p75: salaries[Math.floor(len * 0.75)],
-      count: len
+      vacancies: calculateStats(vacancies),
+      resumes: calculateStats(resumes)
     };
-  };
-
-  return {
-    vacancies: calculateStats(vacancies),
-    resumes: calculateStats(resumes)
-  };
+  } catch (error) {
+    console.error('Error in getSalaryData:', error);
+    return {
+      ranges: [],
+      vacancies: [],
+      resumes: [],
+      percentiles: { vacancies: [], resumes: [] }
+    };
+  }
 };
 
 // Получение статистики по грейдам
