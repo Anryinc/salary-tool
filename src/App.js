@@ -252,13 +252,13 @@ function App() {
       setIsLoading(true);
       setLoadingProgress(0);
 
-      // Удаляем старую базу данных
+      // Удаляем старую базу данных IndexedDB
       await deleteDatabase();
       setLoadingProgress(20);
 
-      // Генерируем тестовые данные
+      // Генерируем или получаем тестовые данные
       const result = await generateTestData(selectedPosition);
-      console.log('Generated test data:', result);
+      console.log('Data loading result:', result);
       setLoadingProgress(60);
 
       // Обновляем данные на странице
@@ -280,6 +280,12 @@ function App() {
       setSalaryData(salaryResponse);
       setGradeStats(statsResponse);
       setLoadingProgress(100);
+
+      // Показываем уведомление о источнике данных
+      const message = result.source === 'existing' 
+        ? 'Данные загружены из основной базы данных'
+        : 'Сгенерированы и сохранены новые данные';
+      console.log(message);
 
       setIsLoading(false);
     } catch (error) {

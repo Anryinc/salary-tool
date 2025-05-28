@@ -1,67 +1,124 @@
 import { getOrCreatePosition, addVacancies, addResumes, getVacancies, getResumes } from './db';
 
-// Генерация случайной даты в текущем месяце
+// Генерация случайной даты за последний год
 const getRandomDate = () => {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const day = Math.floor(Math.random() * now.getDate()) + 1;
-  return new Date(year, month, day).toISOString().split('T')[0];
+  const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+  const randomTime = oneYearAgo.getTime() + Math.random() * (now.getTime() - oneYearAgo.getTime());
+  return new Date(randomTime).toISOString().split('T')[0];
 };
 
 // Генерация тестовых данных
 export const generateTestData = async (position) => {
   console.log('Generating test data for position:', position);
 
-  // Генерируем 1500 вакансий (лимит HH.ru в день)
-  const vacancies = Array.from({ length: 1500 }, (_, i) => ({
-    position,
-    title: `Вакансия ${position} #${i + 1}`,
-    company: `Компания ${Math.floor(Math.random() * 100) + 1}`,
-    salary: Math.floor(Math.random() * 200000) + 50000,
-    date: getRandomDate(),
-    url: `https://hh.ru/vacancy/${Math.floor(Math.random() * 1000000)}`,
-    description: 'Описание вакансии...',
-    requirements: 'Требования к кандидату...',
-    responsibilities: 'Обязанности...',
-    location: 'Москва',
-    experience: ['Нет опыта', 'От 1 до 3 лет', 'От 3 до 6 лет', 'Более 6 лет'][Math.floor(Math.random() * 4)],
-    employment: ['Полная занятость', 'Частичная занятость', 'Проектная работа'][Math.floor(Math.random() * 3)],
-    schedule: ['Полный день', 'Удаленная работа', 'Гибкий график'][Math.floor(Math.random() * 3)]
-  }));
+  try {
+    // Проверяем наличие данных в основной БД
+    const existingData = await fetch(`/api/data/${position}`).then(res => res.json());
+    console.log('Existing data from main database:', existingData);
 
-  // Генерируем 1500 резюме
-  const resumes = Array.from({ length: 1500 }, (_, i) => ({
-    position,
-    title: `Резюме ${position} #${i + 1}`,
-    salary: Math.floor(Math.random() * 300000) + 50000,
-    date: getRandomDate(),
-    url: `https://hh.ru/resume/${Math.floor(Math.random() * 1000000)}`,
-    experience: Math.floor(Math.random() * 10),
-    skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Java', 'C++'].slice(0, Math.floor(Math.random() * 6) + 1),
-    education: ['Высшее', 'Неоконченное высшее', 'Среднее специальное'][Math.floor(Math.random() * 3)],
-    location: 'Москва',
-    employment: ['Полная занятость', 'Частичная занятость', 'Проектная работа'][Math.floor(Math.random() * 3)],
-    schedule: ['Полный день', 'Удаленная работа', 'Гибкий график'][Math.floor(Math.random() * 3)]
-  }));
+    if (existingData && existingData.vacancies && existingData.resumes) {
+      console.log('Using existing data from main database');
+      
+      // Сохраняем существующие данные в IndexedDB
+      const positionId = await getOrCreatePosition(position);
+      console.log('Position ID:', positionId);
 
-  console.log('Generated test data:', {
-    vacancies: vacancies.length,
-    resumes: resumes.length,
-    sampleVacancy: vacancies[0],
-    sampleResume: resumes[0]
-  });
+      console.log('Adding existing vacancies to IndexedDB...');
+      const vacancyResults = await addVacancies(existingData.vacancies);
+      console.log('Vacancies added:', vacancyResults);
 
-  // Сохраняем данные в базу
-  const positionId = await getOrCreatePosition(position);
-  const vacancyResults = await addVacancies(vacancies);
-  const resumeResults = await addResumes(resumes);
+      console.log('Adding existing resumes to IndexedDB...');
+      const resumeResults = await addResumes(existingData.resumes);
+      console.log('Resumes added:', resumeResults);
 
-  return {
-    positionId,
-    vacancies: vacancyResults,
-    resumes: resumeResults
-  };
+      return {
+        positionId,
+        vacancies: vacancyResults,
+        resumes: resumeResults,
+        source: 'existing'
+      };
+    }
+
+    // Если данных нет, генерируем новые
+    console.log('No existing data found, generating new data...');
+
+    // Генерируем 1500 вакансий (лимит HH.ru в день)
+    const vacancies = Array.from({ length: 1500 }, (_, i) => ({
+      position,
+      title: `Вакансия ${position} #${i + 1}`,
+      company: `Компания ${Math.floor(Math.random() * 100) + 1}`,
+      salary: Math.floor(Math.random() * 200000) + 50000,
+      date: getRandomDate(),
+      url: `https://hh.ru/vacancy/${Math.floor(Math.random() * 1000000)}`,
+      description: 'Описание вакансии...',
+      requirements: 'Требования к кандидату...',
+      responsibilities: 'Обязанности...',
+      location: 'Москва',
+      experience: ['Нет опыта', 'От 1 до 3 лет', 'От 3 до 6 лет', 'Более 6 лет'][Math.floor(Math.random() * 4)],
+      employment: ['Полная занятость', 'Частичная занятость', 'Проектная работа'][Math.floor(Math.random() * 3)],
+      schedule: ['Полный день', 'Удаленная работа', 'Гибкий график'][Math.floor(Math.random() * 3)]
+    }));
+
+    // Генерируем 1500 резюме
+    const resumes = Array.from({ length: 1500 }, (_, i) => ({
+      position,
+      title: `Резюме ${position} #${i + 1}`,
+      salary: Math.floor(Math.random() * 300000) + 50000,
+      date: getRandomDate(),
+      url: `https://hh.ru/resume/${Math.floor(Math.random() * 1000000)}`,
+      experience: Math.floor(Math.random() * 10),
+      skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Java', 'C++'].slice(0, Math.floor(Math.random() * 6) + 1),
+      education: ['Высшее', 'Неоконченное высшее', 'Среднее специальное'][Math.floor(Math.random() * 3)],
+      location: 'Москва',
+      employment: ['Полная занятость', 'Частичная занятость', 'Проектная работа'][Math.floor(Math.random() * 3)],
+      schedule: ['Полный день', 'Удаленная работа', 'Гибкий график'][Math.floor(Math.random() * 3)]
+    }));
+
+    console.log('Generated test data:', {
+      vacancies: vacancies.length,
+      resumes: resumes.length,
+      sampleVacancy: vacancies[0],
+      sampleResume: resumes[0]
+    });
+
+    // Сохраняем данные в основную БД
+    console.log('Saving data to main database...');
+    await fetch('/api/data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        position,
+        vacancies,
+        resumes
+      })
+    });
+
+    // Сохраняем данные в IndexedDB
+    console.log('Saving data to IndexedDB...');
+    const positionId = await getOrCreatePosition(position);
+    console.log('Position ID:', positionId);
+
+    console.log('Adding vacancies to IndexedDB...');
+    const vacancyResults = await addVacancies(vacancies);
+    console.log('Vacancies added:', vacancyResults);
+
+    console.log('Adding resumes to IndexedDB...');
+    const resumeResults = await addResumes(resumes);
+    console.log('Resumes added:', resumeResults);
+
+    return {
+      positionId,
+      vacancies: vacancyResults,
+      resumes: resumeResults,
+      source: 'new'
+    };
+  } catch (error) {
+    console.error('Error in generateTestData:', error);
+    throw error;
+  }
 };
 
 // Поиск позиций
