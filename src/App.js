@@ -339,7 +339,6 @@ function App() {
       tooltip: {
         callbacks: {
           label: function(context) {
-            const range = salaryData.ranges[context.dataIndex];
             const percentiles = salaryData.percentiles?.vacancies?.[context.dataIndex]?.percentiles;
             const resumePercentiles = salaryData.percentiles?.resumes?.[context.dataIndex]?.percentiles;
             
