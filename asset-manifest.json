@@ -1,12 +1,12 @@
 {
   "files": {
     "main.css": "/salary-tool/static/css/main.9a71fbc5.css",
-    "main.js": "/salary-tool/static/js/main.1734e93b.js",
+    "main.js": "/salary-tool/static/js/main.f1dba6cb.js",
     "static/js/206.340c4f4b.chunk.js": "/salary-tool/static/js/206.340c4f4b.chunk.js",
     "index.html": "/salary-tool/index.html"
   },
   "entrypoints": [
     "static/css/main.9a71fbc5.css",
-    "static/js/main.1734e93b.js"
+    "static/js/main.f1dba6cb.js"
   ]
 }
