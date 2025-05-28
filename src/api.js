@@ -60,8 +60,8 @@ export const generateTestData = async (position) => {
     const positionId = await getOrCreatePosition(position);
     console.log('Position ID:', positionId);
 
-    // Разбиваем данные на чанки по 100 записей
-    const CHUNK_SIZE = 100;
+    // Разбиваем данные на чанки по 50 записей
+    const CHUNK_SIZE = 50;
     const vacancyChunks = [];
     const resumeChunks = [];
 
@@ -73,19 +73,41 @@ export const generateTestData = async (position) => {
       resumeChunks.push(resumes.slice(i, i + CHUNK_SIZE));
     }
 
+    // Функция для добавления задержки
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
     console.log('Adding vacancies to IndexedDB in chunks...');
     let vacancyResults = [];
-    for (const chunk of vacancyChunks) {
-      const results = await addVacancies(chunk);
-      vacancyResults = vacancyResults.concat(results);
+    for (let i = 0; i < vacancyChunks.length; i++) {
+      try {
+        const results = await addVacancies(vacancyChunks[i]);
+        vacancyResults = vacancyResults.concat(results);
+        console.log(`Added chunk ${i + 1}/${vacancyChunks.length} of vacancies`);
+        // Добавляем небольшую задержку между чанками
+        await delay(100);
+      } catch (error) {
+        console.error(`Error adding vacancy chunk ${i + 1}:`, error);
+        // Продолжаем с следующим чанком
+      }
     }
     console.log('Vacancies added:', vacancyResults.length);
 
+    // Добавляем задержку между вакансиями и резюме
+    await delay(500);
+
     console.log('Adding resumes to IndexedDB in chunks...');
     let resumeResults = [];
-    for (const chunk of resumeChunks) {
-      const results = await addResumes(chunk);
-      resumeResults = resumeResults.concat(results);
+    for (let i = 0; i < resumeChunks.length; i++) {
+      try {
+        const results = await addResumes(resumeChunks[i]);
+        resumeResults = resumeResults.concat(results);
+        console.log(`Added chunk ${i + 1}/${resumeChunks.length} of resumes`);
+        // Добавляем небольшую задержку между чанками
+        await delay(100);
+      } catch (error) {
+        console.error(`Error adding resume chunk ${i + 1}:`, error);
+        // Продолжаем с следующим чанком
+      }
     }
     console.log('Resumes added:', resumeResults.length);
 
