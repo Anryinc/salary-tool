@@ -60,7 +60,6 @@ export const addVacancies = async (vacancies) => {
   const tx = db.transaction('vacancies', 'readwrite');
   const store = tx.objectStore('vacancies');
   const urlIndex = store.index('url');
-  const monthIndex = store.index('month');
 
   const addedCount = { total: 0, new: 0, duplicates: 0 };
 
@@ -105,7 +104,6 @@ export const addResumes = async (resumes) => {
   const tx = db.transaction('resumes', 'readwrite');
   const store = tx.objectStore('resumes');
   const urlIndex = store.index('url');
-  const monthIndex = store.index('month');
 
   const addedCount = { total: 0, new: 0, duplicates: 0 };
 
@@ -160,7 +158,6 @@ export const getVacancies = async (position, startDate, endDate) => {
   const tx = db.transaction('vacancies', 'readonly');
   const store = tx.objectStore('vacancies');
   const positionIndex = store.index('position');
-  const dateIndex = store.index('date');
 
   let vacancies = await positionIndex.getAll(position);
   
@@ -181,7 +178,6 @@ export const getResumes = async (position, startDate, endDate) => {
   const tx = db.transaction('resumes', 'readonly');
   const store = tx.objectStore('resumes');
   const positionIndex = store.index('position');
-  const dateIndex = store.index('date');
 
   let resumes = await positionIndex.getAll(position);
   

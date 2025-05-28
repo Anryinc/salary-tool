@@ -1,8 +1,6 @@
-import { API_URLS } from './config';
+// Удаляем неиспользуемый импорт
+// import { API_URLS } from './config';
 import { getOrCreatePosition, addVacancies, addResumes, getVacancies, getResumes } from './db';
-
-// Удаляем неиспользуемые импорты
-// ... existing code ...
 
 // Функция для расчета перцентиля
 const calculatePercentile = (data, percentile) => {
