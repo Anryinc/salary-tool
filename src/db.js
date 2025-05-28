@@ -1,7 +1,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'salary_tool_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // Инициализация базы данных
 export const initDB = async () => {
@@ -162,10 +162,12 @@ export const getVacancies = async (position, startDate, endDate) => {
   let vacancies = await positionIndex.getAll(position);
   
   if (startDate) {
-    vacancies = vacancies.filter(v => v.date >= startDate);
+    const startMonth = startDate.substring(0, 7);
+    vacancies = vacancies.filter(v => v.month >= startMonth);
   }
   if (endDate) {
-    vacancies = vacancies.filter(v => v.date <= endDate);
+    const endMonth = endDate.substring(0, 7);
+    vacancies = vacancies.filter(v => v.month <= endMonth);
   }
 
   await tx.done;
@@ -182,10 +184,12 @@ export const getResumes = async (position, startDate, endDate) => {
   let resumes = await positionIndex.getAll(position);
   
   if (startDate) {
-    resumes = resumes.filter(r => r.date >= startDate);
+    const startMonth = startDate.substring(0, 7);
+    resumes = resumes.filter(r => r.month >= startMonth);
   }
   if (endDate) {
-    resumes = resumes.filter(r => r.date <= endDate);
+    const endMonth = endDate.substring(0, 7);
+    resumes = resumes.filter(r => r.month <= endMonth);
   }
 
   await tx.done;
