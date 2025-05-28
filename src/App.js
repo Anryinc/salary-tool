@@ -38,7 +38,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import { searchPositions, getSalaryData, getGradeStats, updateGradeRange } from './api';
+import { searchPositions, getSalaryData, getGradeStats, updateGradeRange, deleteDatabase, generateTestData } from './api';
 import EditIcon from '@mui/icons-material/Edit';
 import SalaryDistribution from './components/SalaryDistribution';
 import './App.css';
@@ -250,35 +250,24 @@ function App() {
     try {
       setIsLoading(true);
       setLoadingProgress(0);
-      console.log('Manual data load triggered for position:', selectedPosition);
 
-      // Имитация прогресса парсинга
-      const progressInterval = setInterval(() => {
-        setLoadingProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return prev;
-          }
-          return prev + 10;
-        });
-      }, 1000);
+      // Удаляем старую базу данных
+      await deleteDatabase();
+      setLoadingProgress(20);
 
-      // Вызов функции загрузки данных
+      // Генерируем тестовые данные
+      const result = await generateTestData(selectedPosition);
+      console.log('Generated test data:', result);
+      setLoadingProgress(60);
+
+      // Обновляем данные на странице
       await fetchData();
-
-      // Завершение прогресса
-      clearInterval(progressInterval);
       setLoadingProgress(100);
-      
-      // Сброс прогресса через 2 секунды
-      setTimeout(() => {
-        setLoadingProgress(0);
-        setIsLoading(false);
-      }, 2000);
+
+      setIsLoading(false);
     } catch (error) {
       console.error('Error loading data:', error);
       setIsLoading(false);
-      setLoadingProgress(0);
     }
   };
 

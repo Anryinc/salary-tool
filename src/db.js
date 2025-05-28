@@ -1,37 +1,61 @@
-import { openDB } from 'idb';
+import { openDB, deleteDB } from 'idb';
 
 const DB_NAME = 'salary_tool_db';
 const DB_VERSION = 2;
 
+// Удаление базы данных
+export const deleteDatabase = async () => {
+  try {
+    await deleteDB(DB_NAME);
+    console.log('Database deleted successfully');
+  } catch (error) {
+    console.error('Error deleting database:', error);
+  }
+};
+
 // Инициализация базы данных
 export const initDB = async () => {
-  const db = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      // Создаем хранилище для позиций
-      if (!db.objectStoreNames.contains('positions')) {
-        db.createObjectStore('positions', { keyPath: 'id', autoIncrement: true });
-      }
+  try {
+    const db = await openDB(DB_NAME, DB_VERSION, {
+      upgrade(db, oldVersion, newVersion) {
+        console.log(`Upgrading database from version ${oldVersion} to ${newVersion}`);
 
-      // Создаем хранилище для вакансий
-      if (!db.objectStoreNames.contains('vacancies')) {
+        // Удаляем старые хранилища
+        if (db.objectStoreNames.contains('positions')) {
+          db.deleteObjectStore('positions');
+        }
+        if (db.objectStoreNames.contains('vacancies')) {
+          db.deleteObjectStore('vacancies');
+        }
+        if (db.objectStoreNames.contains('resumes')) {
+          db.deleteObjectStore('resumes');
+        }
+
+        // Создаем хранилище для позиций
+        db.createObjectStore('positions', { keyPath: 'id', autoIncrement: true });
+
+        // Создаем хранилище для вакансий
         const vacancyStore = db.createObjectStore('vacancies', { keyPath: 'id', autoIncrement: true });
         vacancyStore.createIndex('position', 'position');
         vacancyStore.createIndex('date', 'date');
         vacancyStore.createIndex('url', 'url', { unique: true });
         vacancyStore.createIndex('month', 'month');
-      }
 
-      // Создаем хранилище для резюме
-      if (!db.objectStoreNames.contains('resumes')) {
+        // Создаем хранилище для резюме
         const resumeStore = db.createObjectStore('resumes', { keyPath: 'id', autoIncrement: true });
         resumeStore.createIndex('position', 'position');
         resumeStore.createIndex('date', 'date');
         resumeStore.createIndex('url', 'url', { unique: true });
         resumeStore.createIndex('month', 'month');
-      }
-    },
-  });
-  return db;
+      },
+    });
+    return db;
+  } catch (error) {
+    console.error('Error initializing database:', error);
+    // Если произошла ошибка, удаляем базу и пробуем снова
+    await deleteDatabase();
+    return initDB();
+  }
 };
 
 // Получение или создание позиции
