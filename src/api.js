@@ -8,6 +8,52 @@ const getRandomDate = () => {
   return new Date(randomTime).toISOString().split('T')[0];
 };
 
+// Генерация случайной зарплаты
+const getRandomSalary = () => {
+  const min = 50000;
+  const max = 500000;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+// Генерация случайного опыта
+const getRandomExperience = () => {
+  const experiences = [
+    'Нет опыта',
+    'От 1 до 3 лет',
+    'От 3 до 6 лет',
+    'Более 6 лет'
+  ];
+  return experiences[Math.floor(Math.random() * experiences.length)];
+};
+
+// Генерация случайных навыков
+const getRandomSkills = () => {
+  const allSkills = [
+    'JavaScript', 'TypeScript', 'React', 'Vue', 'Angular',
+    'Node.js', 'Python', 'Java', 'C#', 'C++',
+    'SQL', 'MongoDB', 'Redis', 'Docker', 'Kubernetes',
+    'AWS', 'Azure', 'GCP', 'Git', 'CI/CD'
+  ];
+  const count = Math.floor(Math.random() * 5) + 3; // 3-7 навыков
+  const skills = [];
+  while (skills.length < count) {
+    const skill = allSkills[Math.floor(Math.random() * allSkills.length)];
+    if (!skills.includes(skill)) {
+      skills.push(skill);
+    }
+  }
+  return skills;
+};
+
+// Определение грейда по зарплате
+const getGradeBySalary = (salary) => {
+  if (salary < 60000) return 'Intern';
+  if (salary < 150000) return 'Junior';
+  if (salary < 260000) return 'Middle';
+  if (salary < 350000) return 'Senior';
+  return 'Lead';
+};
+
 // Генерация тестовых данных
 export const generateTestData = async (position) => {
   try {
