@@ -284,19 +284,39 @@ function App() {
       console.log('Data loading result:', result);
       setLoadingProgress(80);
 
-      if (!result.vacancies.length || !result.resumes.length) {
+      if (!result.vacancies || !result.resumes) {
         throw new Error('Не удалось загрузить данные');
       }
 
       // Проверяем и валидируем данные
       const validVacancies = result.vacancies.filter(v => 
-        v && typeof v.salary === 'number' && !isNaN(v.salary)
-      );
-      const validResumes = result.resumes.filter(r => 
-        r && typeof r.salary === 'number' && !isNaN(r.salary)
+        v && 
+        typeof v === 'object' && 
+        typeof v.salary === 'number' && 
+        !isNaN(v.salary) &&
+        v.salary > 0
       );
 
-      if (validVacancies.length === 0 || validResumes.length === 0) {
+      const validResumes = result.resumes.filter(r => 
+        r && 
+        typeof r === 'object' && 
+        typeof r.salary === 'number' && 
+        !isNaN(r.salary) &&
+        r.salary > 0
+      );
+
+      console.log('Validated data:', {
+        vacancies: {
+          total: result.vacancies.length,
+          valid: validVacancies.length
+        },
+        resumes: {
+          total: result.resumes.length,
+          valid: validResumes.length
+        }
+      });
+
+      if (validVacancies.length === 0 && validResumes.length === 0) {
         throw new Error('Нет валидных данных для отображения');
       }
 

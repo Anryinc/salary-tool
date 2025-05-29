@@ -83,43 +83,44 @@ export const addVacancies = async (vacancies) => {
   const db = await initDB();
   const tx = db.transaction('vacancies', 'readwrite');
   const store = tx.objectStore('vacancies');
-  const urlIndex = store.index('url');
-
-  const addedCount = { total: 0, new: 0, duplicates: 0 };
-
+  
+  const results = [];
+  const duplicates = [];
+  
   for (const vacancy of vacancies) {
-    // Добавляем месяц для проверки дубликатов
-    const month = vacancy.date.substring(0, 7);
-    vacancy.month = month;
-
     try {
-      // Проверяем существование вакансии по URL
-      const existingVacancy = await urlIndex.get(vacancy.url);
+      // Проверяем, существует ли уже вакансия с таким ID
+      const existing = await store.get(vacancy.id);
       
-      if (existingVacancy) {
-        // Если вакансия существует в том же месяце, пропускаем
-        if (existingVacancy.month === month) {
-          addedCount.duplicates++;
-          continue;
+      if (existing) {
+        // Если вакансия существует и датируется тем же месяцем, обновляем её
+        const existingDate = new Date(existing.date);
+        const newDate = new Date(vacancy.date);
+        
+        if (existingDate.getMonth() === newDate.getMonth() && 
+            existingDate.getFullYear() === newDate.getFullYear()) {
+          await store.put(vacancy);
+          results.push(vacancy);
+        } else {
+          // Если вакансия из другого месяца, добавляем как новую
+          const newId = `${vacancy.id}_${Date.now()}`;
+          vacancy.id = newId;
+          await store.add(vacancy);
+          results.push(vacancy);
         }
-      }
-
-      // Добавляем новую вакансию
-      await store.add(vacancy);
-      addedCount.new++;
-    } catch (error) {
-      if (error.name === 'ConstraintError') {
-        addedCount.duplicates++;
       } else {
-        throw error;
+        // Если вакансии нет, добавляем как новую
+        await store.add(vacancy);
+        results.push(vacancy);
       }
+    } catch (error) {
+      console.error('Error adding vacancy:', error);
+      duplicates.push(vacancy);
     }
-    addedCount.total++;
   }
-
-  await tx.done;
-  console.log('Added vacancies:', addedCount);
-  return addedCount;
+  
+  await tx.complete;
+  return { total: vacancies.length, new: results.length, duplicates: duplicates.length };
 };
 
 // Добавление резюме с проверкой дубликатов
@@ -127,43 +128,44 @@ export const addResumes = async (resumes) => {
   const db = await initDB();
   const tx = db.transaction('resumes', 'readwrite');
   const store = tx.objectStore('resumes');
-  const urlIndex = store.index('url');
-
-  const addedCount = { total: 0, new: 0, duplicates: 0 };
-
+  
+  const results = [];
+  const duplicates = [];
+  
   for (const resume of resumes) {
-    // Добавляем месяц для проверки дубликатов
-    const month = resume.date.substring(0, 7);
-    resume.month = month;
-
     try {
-      // Проверяем существование резюме по URL
-      const existingResume = await urlIndex.get(resume.url);
+      // Проверяем, существует ли уже резюме с таким ID
+      const existing = await store.get(resume.id);
       
-      if (existingResume) {
-        // Если резюме существует в том же месяце, пропускаем
-        if (existingResume.month === month) {
-          addedCount.duplicates++;
-          continue;
+      if (existing) {
+        // Если резюме существует и датируется тем же месяцем, обновляем его
+        const existingDate = new Date(existing.date);
+        const newDate = new Date(resume.date);
+        
+        if (existingDate.getMonth() === newDate.getMonth() && 
+            existingDate.getFullYear() === newDate.getFullYear()) {
+          await store.put(resume);
+          results.push(resume);
+        } else {
+          // Если резюме из другого месяца, добавляем как новое
+          const newId = `${resume.id}_${Date.now()}`;
+          resume.id = newId;
+          await store.add(resume);
+          results.push(resume);
         }
-      }
-
-      // Добавляем новое резюме
-      await store.add(resume);
-      addedCount.new++;
-    } catch (error) {
-      if (error.name === 'ConstraintError') {
-        addedCount.duplicates++;
       } else {
-        throw error;
+        // Если резюме нет, добавляем как новое
+        await store.add(resume);
+        results.push(resume);
       }
+    } catch (error) {
+      console.error('Error adding resume:', error);
+      duplicates.push(resume);
     }
-    addedCount.total++;
   }
-
-  await tx.done;
-  console.log('Added resumes:', addedCount);
-  return addedCount;
+  
+  await tx.complete;
+  return { total: resumes.length, new: results.length, duplicates: duplicates.length };
 };
 
 // Получение всех позиций

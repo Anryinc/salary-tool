@@ -10,133 +10,111 @@ const getRandomDate = () => {
 
 // Генерация тестовых данных
 export const generateTestData = async (position) => {
-  console.log('Generating test data for position:', position);
-
   try {
-    // Генерируем данные
-    console.log('Generating new data...');
+    console.log('Generating test data for position:', position);
+    
+    // Проверяем наличие данных в основной БД
+    const existingData = await fetch(`/api/data/${position}`)
+      .then(res => res.json())
+      .catch(() => null);
 
-    // Генерируем 1500 вакансий (лимит HH.ru в день)
-    const vacancies = Array.from({ length: 1500 }, (_, i) => ({
-      position,
-      title: `Вакансия ${position} #${i + 1}`,
-      company: `Компания ${Math.floor(Math.random() * 100) + 1}`,
-      salary: Math.floor(Math.random() * 200000) + 50000,
-      date: getRandomDate(),
-      url: `https://hh.ru/vacancy/${Math.floor(Math.random() * 1000000)}`,
-      description: 'Описание вакансии...',
-      requirements: 'Требования к кандидату...',
-      responsibilities: 'Обязанности...',
-      location: 'Москва',
-      experience: ['Нет опыта', 'От 1 до 3 лет', 'От 3 до 6 лет', 'Более 6 лет'][Math.floor(Math.random() * 4)],
-      employment: ['Полная занятость', 'Частичная занятость', 'Проектная работа'][Math.floor(Math.random() * 3)],
-      schedule: ['Полный день', 'Удаленная работа', 'Гибкий график'][Math.floor(Math.random() * 3)]
-    }));
+    if (existingData && existingData.vacancies && existingData.resumes) {
+      console.log('Found existing data in main database:', {
+        vacancies: existingData.vacancies.length,
+        resumes: existingData.resumes.length
+      });
 
-    // Генерируем 1500 резюме
-    const resumes = Array.from({ length: 1500 }, (_, i) => ({
-      position,
-      title: `Резюме ${position} #${i + 1}`,
-      salary: Math.floor(Math.random() * 300000) + 50000,
-      date: getRandomDate(),
-      url: `https://hh.ru/resume/${Math.floor(Math.random() * 1000000)}`,
-      experience: Math.floor(Math.random() * 10),
-      skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Java', 'C++'].slice(0, Math.floor(Math.random() * 6) + 1),
-      education: ['Высшее', 'Неоконченное высшее', 'Среднее специальное'][Math.floor(Math.random() * 3)],
-      location: 'Москва',
-      employment: ['Полная занятость', 'Частичная занятость', 'Проектная работа'][Math.floor(Math.random() * 3)],
-      schedule: ['Полный день', 'Удаленная работа', 'Гибкий график'][Math.floor(Math.random() * 3)]
-    }));
+      // Сохраняем существующие данные в IndexedDB
+      await addVacancies(existingData.vacancies);
+      await addResumes(existingData.resumes);
 
-    console.log('Generated test data:', {
-      vacancies: vacancies.length,
-      resumes: resumes.length,
-      sampleVacancy: vacancies[0],
-      sampleResume: resumes[0]
-    });
-
-    // Сохраняем данные в IndexedDB
-    console.log('Saving data to IndexedDB...');
-    const positionId = await getOrCreatePosition(position);
-    console.log('Position ID:', positionId);
-
-    // Разбиваем данные на чанки по 25 записей
-    const CHUNK_SIZE = 25;
-    const vacancyChunks = [];
-    const resumeChunks = [];
-
-    for (let i = 0; i < vacancies.length; i += CHUNK_SIZE) {
-      vacancyChunks.push(vacancies.slice(i, i + CHUNK_SIZE));
+      return {
+        positionId: existingData.positionId,
+        vacancies: existingData.vacancies,
+        resumes: existingData.resumes,
+        source: 'existing'
+      };
     }
 
-    for (let i = 0; i < resumes.length; i += CHUNK_SIZE) {
-      resumeChunks.push(resumes.slice(i, i + CHUNK_SIZE));
+    // Генерируем новые данные
+    const positionId = 1; // В реальном приложении это будет ID из БД
+    const vacancies = [];
+    const resumes = [];
+
+    // Генерируем вакансии
+    for (let i = 0; i < 60; i++) {
+      const salary = getRandomSalary();
+      const experience = getRandomExperience();
+      const date = getRandomDate();
+      
+      vacancies.push({
+        id: `v_${positionId}_${i}`,
+        positionId,
+        title: `${position} Developer`,
+        company: `Company ${i + 1}`,
+        salary,
+        experience,
+        date,
+        skills: getRandomSkills(),
+        grade: getGradeBySalary(salary)
+      });
     }
 
-    // Функция для добавления задержки
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    // Генерируем резюме
+    for (let i = 0; i < 60; i++) {
+      const salary = getRandomSalary();
+      const experience = getRandomExperience();
+      const date = getRandomDate();
+      
+      resumes.push({
+        id: `r_${positionId}_${i}`,
+        positionId,
+        title: `${position} Developer`,
+        salary,
+        experience,
+        date,
+        skills: getRandomSkills(),
+        grade: getGradeBySalary(salary)
+      });
+    }
 
-    // Функция для повторных попыток
-    const retryOperation = async (operation, maxRetries = 3) => {
-      for (let i = 0; i < maxRetries; i++) {
-        try {
-          return await operation();
-        } catch (error) {
-          if (i === maxRetries - 1) throw error;
-          console.log(`Retry ${i + 1}/${maxRetries} after error:`, error);
-          await delay(500 * (i + 1)); // Увеличиваем задержку с каждой попыткой
-        }
+    // Сохраняем новые данные в основную БД
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          positionId,
+          position,
+          vacancies,
+          resumes
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save data to main database');
       }
-    };
 
-    console.log('Adding vacancies to IndexedDB in chunks...');
-    let vacancyResults = [];
-    for (let i = 0; i < vacancyChunks.length; i++) {
-      try {
-        const results = await retryOperation(() => addVacancies(vacancyChunks[i]));
-        vacancyResults = vacancyResults.concat(results);
-        console.log(`Added chunk ${i + 1}/${vacancyChunks.length} of vacancies`);
-        // Добавляем небольшую задержку между чанками
-        await delay(200);
-      } catch (error) {
-        console.error(`Error adding vacancy chunk ${i + 1}:`, error);
-        // Продолжаем с следующим чанком
-      }
+      console.log('Successfully saved data to main database');
+    } catch (error) {
+      console.error('Error saving to main database:', error);
+      // Продолжаем выполнение, так как данные уже сохранены в IndexedDB
     }
-    console.log('Vacancies added:', vacancyResults.length);
 
-    // Добавляем задержку между вакансиями и резюме
-    await delay(1000);
-
-    console.log('Adding resumes to IndexedDB in chunks...');
-    let resumeResults = [];
-    for (let i = 0; i < resumeChunks.length; i++) {
-      try {
-        const results = await retryOperation(() => addResumes(resumeChunks[i]));
-        resumeResults = resumeResults.concat(results);
-        console.log(`Added chunk ${i + 1}/${resumeChunks.length} of resumes`);
-        // Добавляем небольшую задержку между чанками
-        await delay(200);
-      } catch (error) {
-        console.error(`Error adding resume chunk ${i + 1}:`, error);
-        // Продолжаем с следующим чанком
-      }
-    }
-    console.log('Resumes added:', resumeResults.length);
-
-    // Проверяем, что у нас есть достаточно данных для отображения
-    if (vacancyResults.length < 10 || resumeResults.length < 10) {
-      throw new Error('Недостаточно данных для отображения статистики');
-    }
+    // Сохраняем в IndexedDB
+    await addVacancies(vacancies);
+    await addResumes(resumes);
 
     return {
       positionId,
-      vacancies: vacancyResults,
-      resumes: resumeResults,
+      vacancies,
+      resumes,
       source: 'new'
     };
   } catch (error) {
-    console.error('Error in generateTestData:', error);
+    console.error('Error generating test data:', error);
     throw error;
   }
 };
