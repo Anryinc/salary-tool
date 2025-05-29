@@ -1,4 +1,4 @@
-import { getOrCreatePosition, addVacancies, addResumes, getVacancies, getResumes } from './db';
+import { addVacancies, addResumes, getVacancies, getResumes } from './db';
 
 // Генерация случайной даты за последний год
 const getRandomDate = () => {
