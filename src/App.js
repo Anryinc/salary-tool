@@ -288,10 +288,22 @@ function App() {
         throw new Error('Не удалось загрузить данные');
       }
 
+      // Проверяем и валидируем данные
+      const validVacancies = result.vacancies.filter(v => 
+        v && typeof v.salary === 'number' && !isNaN(v.salary)
+      );
+      const validResumes = result.resumes.filter(r => 
+        r && typeof r.salary === 'number' && !isNaN(r.salary)
+      );
+
+      if (validVacancies.length === 0 || validResumes.length === 0) {
+        throw new Error('Нет валидных данных для отображения');
+      }
+
       // Сохраняем загруженные данные для отображения в списках
       setLoadedData({
-        vacancies: result.vacancies,
-        resumes: result.resumes
+        vacancies: validVacancies,
+        resumes: validResumes
       });
 
       // Обновляем данные
@@ -312,7 +324,7 @@ function App() {
 
       // Показываем уведомление об успешной загрузке
       setNotification({
-        message: `Данные успешно загружены (${result.vacancies.length} вакансий, ${result.resumes.length} резюме)`,
+        message: `Данные успешно загружены (${validVacancies.length} вакансий, ${validResumes.length} резюме)`,
         type: 'success'
       });
     } catch (error) {
