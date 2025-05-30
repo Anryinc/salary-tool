@@ -51,39 +51,88 @@ def add_data():
     cursor = conn.cursor()
     
     try:
+        current_month = datetime.now().strftime('%Y-%m')
+        
         # Добавляем вакансии
         for vacancy in vacancies:
+            # Проверяем существование вакансии
             cursor.execute('''
-                INSERT INTO vacancies (
-                    position, salary, currency, source, location, company,
-                    parsed_date, parsed_month
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                position,
-                str(vacancy['salary']),
-                'RUB',
-                'Generated',
-                'Moscow',
-                'Test Company',
-                datetime.now().strftime('%Y-%m-%d'),
-                datetime.now().strftime('%Y-%m')
-            ))
+                SELECT id, parsed_month 
+                FROM vacancies 
+                WHERE position = ? AND company = ? AND salary = ?
+            ''', (position, vacancy['company'], str(vacancy['salary'])))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                # Обновляем только если из того же месяца
+                if existing['parsed_month'] == current_month:
+                    cursor.execute('''
+                        UPDATE vacancies 
+                        SET parsed_date = ?, parsed_month = ?
+                        WHERE id = ?
+                    ''', (
+                        datetime.now().strftime('%Y-%m-%d'),
+                        current_month,
+                        existing['id']
+                    ))
+            else:
+                # Добавляем новую вакансию
+                cursor.execute('''
+                    INSERT INTO vacancies (
+                        position, salary, currency, source, location, company,
+                        parsed_date, parsed_month
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    position,
+                    str(vacancy['salary']),
+                    'RUB',
+                    'Generated',
+                    'Moscow',
+                    vacancy['company'],
+                    datetime.now().strftime('%Y-%m-%d'),
+                    current_month
+                ))
 
         # Добавляем резюме
         for resume in resumes:
+            # Проверяем существование резюме
             cursor.execute('''
-                INSERT INTO resumes (
-                    desired_position, salary, salary_currency, location,
-                    parsed_date, parsed_month
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                position,
-                str(resume['salary']),
-                'RUB',
-                'Moscow',
-                datetime.now().strftime('%Y-%m-%d'),
-                datetime.now().strftime('%Y-%m')
-            ))
+                SELECT id, parsed_month 
+                FROM resumes 
+                WHERE desired_position = ? AND salary = ? AND experience = ?
+            ''', (position, str(resume['salary']), resume['experience']))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                # Обновляем только если из того же месяца
+                if existing['parsed_month'] == current_month:
+                    cursor.execute('''
+                        UPDATE resumes 
+                        SET parsed_date = ?, parsed_month = ?
+                        WHERE id = ?
+                    ''', (
+                        datetime.now().strftime('%Y-%m-%d'),
+                        current_month,
+                        existing['id']
+                    ))
+            else:
+                # Добавляем новое резюме
+                cursor.execute('''
+                    INSERT INTO resumes (
+                        desired_position, salary, salary_currency, location,
+                        experience, parsed_date, parsed_month
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    position,
+                    str(resume['salary']),
+                    'RUB',
+                    'Moscow',
+                    resume['experience'],
+                    datetime.now().strftime('%Y-%m-%d'),
+                    current_month
+                ))
 
         conn.commit()
         return jsonify({'success': True})
